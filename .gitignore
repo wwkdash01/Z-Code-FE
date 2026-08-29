@@ -37,6 +37,7 @@ coverage
 .vscode/
 
 # Lint / Format / Build / TS config
+.prettierrc.json
 eslint.config.ts
 prettier.config.mjs
 vite.config.ts
@@ -46,7 +47,7 @@ tsconfig*.json
 # API generator config
 openapi2ts.config.ts
 
-# Package manifest (not needed for code display)
+# Package manifest
 package.json
 package-lock.json
 
@@ -58,3 +59,6 @@ template/
 
 # Git metadata
 .gitattributes
+
+# Env type definition
+env.d.ts
