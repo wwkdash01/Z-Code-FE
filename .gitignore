@@ -28,3 +28,33 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+# AI assistant
+.claude/
+
+# Editor / IDE config
+.editorconfig
+.vscode/
+
+# Lint / Format / Build / TS config
+eslint.config.ts
+prettier.config.mjs
+vite.config.ts
+vite.config.ts.timestamp-*
+tsconfig*.json
+
+# API generator config
+openapi2ts.config.ts
+
+# Package manifest (not needed for code display)
+package.json
+package-lock.json
+
+# Documentation
+README.md
+
+# Template files
+template/
+
+# Git metadata
+.gitattributes
