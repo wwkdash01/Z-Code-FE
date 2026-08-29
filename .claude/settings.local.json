@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp -rn /Users/wangwenkai/wwk_z_code/wwk_z_code /Users/wangwenkai/wwk_z_code/wwk_frontend)",
+      "Read(//Users/wangwenkai/wwk_z_code/**)"
+    ]
+  }
+}
