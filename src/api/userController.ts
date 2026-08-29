@@ -2,9 +2,9 @@
 /* eslint-disable */
 import request from '@/request'
 
-/** 此处后端没有提供注释 POST /users */
+/** 此处后端没有提供注释 POST /users/admin */
 export async function saveUser(body: API.UserAddRequestDTO, options?: { [key: string]: any }) {
-  return request<API.BaseResponsesaveUser>('/users', {
+  return request<API.BaseResponsesaveUser>('/users/admin', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -14,7 +14,21 @@ export async function saveUser(body: API.UserAddRequestDTO, options?: { [key: st
   })
 }
 
-/** 此处后端没有提供注释 PUT /users/${param0} */
+/** 此处后端没有提供注释 GET /users/admin/${param0} */
+export async function getInfo(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getInfoParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params
+  return request<API.BaseResponseUser>(`/users/admin/${param0}`, {
+    method: 'GET',
+    params: { ...queryParams },
+    ...(options || {}),
+  })
+}
+
+/** 此处后端没有提供注释 PUT /users/admin/${param0} */
 export async function update(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.updateParams,
@@ -22,7 +36,7 @@ export async function update(
   options?: { [key: string]: any }
 ) {
   const { id: param0, ...queryParams } = params
-  return request<API.BaseResponseupdate>(`/users/${param0}`, {
+  return request<API.BaseResponseupdate>(`/users/admin/${param0}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -33,69 +47,27 @@ export async function update(
   })
 }
 
-/** 此处后端没有提供注释 DELETE /users/${param0} */
+/** 此处后端没有提供注释 DELETE /users/admin/${param0} */
 export async function removeUserById(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.removeUserByIdParams,
   options?: { [key: string]: any }
 ) {
   const { id: param0, ...queryParams } = params
-  return request<API.BaseResponseremoveUserById>(`/users/${param0}`, {
+  return request<API.BaseResponseremoveUserById>(`/users/admin/${param0}`, {
     method: 'DELETE',
     params: { ...queryParams },
     ...(options || {}),
   })
 }
 
-/** 此处后端没有提供注释 GET /users/Info/${param0} */
-export async function getInfo(
-  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params: API.getInfoParams,
-  options?: { [key: string]: any }
-) {
-  const { id: param0, ...queryParams } = params
-  return request<API.BaseResponseUser>(`/users/Info/${param0}`, {
-    method: 'GET',
-    params: { ...queryParams },
-    ...(options || {}),
-  })
-}
-
-/** 此处后端没有提供注释 POST /users/login */
-export async function userLogin(body: API.UserLoginRequestDTO, options?: { [key: string]: any }) {
-  return request<API.BaseResponseUserVO>('/users/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    data: body,
-    ...(options || {}),
-  })
-}
-
-/** 此处后端没有提供注释 GET /users/login-status */
-export async function getCurrentUser(options?: { [key: string]: any }) {
-  return request<API.BaseResponseUserVO>('/users/login-status', {
-    method: 'GET',
-    ...(options || {}),
-  })
-}
-
-/** 此处后端没有提供注释 POST /users/logout */
-export async function userLogout(options?: { [key: string]: any }) {
-  return request<API.BaseResponseuserLogout>('/users/logout', {
-    method: 'POST',
-    ...(options || {}),
-  })
-}
-
-/** 此处后端没有提供注释 GET /users/page */
+/** 此处后端没有提供注释 GET /users/admin/page */
 export async function getUserByPage(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.getUserByPageParams,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponsePageUser>('/users/page', {
+  return request<API.BaseResponsePageUser>('/users/admin/page', {
     method: 'GET',
     params: {
       ...params,
@@ -106,17 +78,45 @@ export async function getUserByPage(
   })
 }
 
-/** 此处后端没有提供注释 POST /users/register */
-export async function userRegister(
-  body: API.UserRegisterRequestDTO,
-  options?: { [key: string]: any }
-) {
-  return request<API.BaseResponseuserRegister>('/users/register', {
+/** 此处后端没有提供注释 POST /users/guest/login */
+export async function userLogin(body: API.UserLoginRequestDTO, options?: { [key: string]: any }) {
+  return request<API.BaseResponseUserVO>('/users/guest/login', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     data: body,
+    ...(options || {}),
+  })
+}
+
+/** 此处后端没有提供注释 POST /users/guest/register */
+export async function userRegister(
+  body: API.UserRegisterRequestDTO,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseuserRegister>('/users/guest/register', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  })
+}
+
+/** 此处后端没有提供注释 GET /users/user/login-status */
+export async function getCurrentUser(options?: { [key: string]: any }) {
+  return request<API.BaseResponseUserVO>('/users/user/login-status', {
+    method: 'GET',
+    ...(options || {}),
+  })
+}
+
+/** 此处后端没有提供注释 POST /users/user/logout */
+export async function userLogout(options?: { [key: string]: any }) {
+  return request<API.BaseResponseuserLogout>('/users/user/logout', {
+    method: 'POST',
     ...(options || {}),
   })
 }
