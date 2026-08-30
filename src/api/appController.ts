@@ -1,6 +1,6 @@
 // @ts-ignore
 /* eslint-disable */
-import request from '@/request'
+import request from "@/request";
 
 /** 此处后端没有提供注释 GET /apps/admin/${param0} */
 export async function getAppByAdmin(
@@ -8,12 +8,12 @@ export async function getAppByAdmin(
   params: API.getAppByAdminParams,
   options?: { [key: string]: any }
 ) {
-  const { id: param0, ...queryParams } = params
+  const { id: param0, ...queryParams } = params;
   return request<API.BaseResponseApp>(`/apps/admin/${param0}`, {
-    method: 'GET',
+    method: "GET",
     params: { ...queryParams },
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 PUT /apps/admin/${param0} */
@@ -23,16 +23,16 @@ export async function updateAppByAdmin(
   body: API.AppAdminUpdateRequestDTO,
   options?: { [key: string]: any }
 ) {
-  const { id: param0, ...queryParams } = params
+  const { id: param0, ...queryParams } = params;
   return request<API.BaseResponseupdateAppByAdmin>(`/apps/admin/${param0}`, {
-    method: 'PUT',
+    method: "PUT",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     params: { ...queryParams },
     data: body,
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 DELETE /apps/admin/${param0} */
@@ -41,12 +41,12 @@ export async function removeAppByAdmin(
   params: API.removeAppByAdminParams,
   options?: { [key: string]: any }
 ) {
-  const { id: param0, ...queryParams } = params
+  const { id: param0, ...queryParams } = params;
   return request<API.BaseResponseremoveAppByAdmin>(`/apps/admin/${param0}`, {
-    method: 'DELETE',
+    method: "DELETE",
     params: { ...queryParams },
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 GET /apps/admin/page */
@@ -55,15 +55,15 @@ export async function getAppByAdminPage(
   params: API.getAppByAdminPageParams,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponsePageApp>('/apps/admin/page', {
-    method: 'GET',
+  return request<API.BaseResponsePageApp>("/apps/admin/page", {
+    method: "GET",
     params: {
       ...params,
       appAdminQueryRequestDTO: undefined,
-      ...params['appAdminQueryRequestDTO'],
+      ...params["appAdminQueryRequestDTO"],
     },
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 GET /apps/guest/page/featured */
@@ -72,27 +72,30 @@ export async function getFeaturedAppByPage(
   params: API.getFeaturedAppByPageParams,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponsePageAppVO>('/apps/guest/page/featured', {
-    method: 'GET',
+  return request<API.BaseResponsePageAppVO>("/apps/guest/page/featured", {
+    method: "GET",
     params: {
       ...params,
       appQueryRequestDTO: undefined,
-      ...params['appQueryRequestDTO'],
+      ...params["appQueryRequestDTO"],
     },
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 POST /apps/user */
-export async function saveApp(body: API.AppAddRequestDTO, options?: { [key: string]: any }) {
-  return request<API.BaseResponsesaveApp>('/apps/user', {
-    method: 'POST',
+export async function saveApp(
+  body: API.AppAddRequestDTO,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponsesaveApp>("/apps/user", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     data: body,
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 GET /apps/user/${param0} */
@@ -101,12 +104,12 @@ export async function getAppById(
   params: API.getAppByIdParams,
   options?: { [key: string]: any }
 ) {
-  const { id: param0, ...queryParams } = params
+  const { id: param0, ...queryParams } = params;
   return request<API.BaseResponseAppVO>(`/apps/user/${param0}`, {
-    method: 'GET',
+    method: "GET",
     params: { ...queryParams },
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 PUT /apps/user/${param0} */
@@ -116,16 +119,16 @@ export async function updateAppById(
   body: API.AppUpdateRequestDTO,
   options?: { [key: string]: any }
 ) {
-  const { id: param0, ...queryParams } = params
+  const { id: param0, ...queryParams } = params;
   return request<API.BaseResponseupdateAppById>(`/apps/user/${param0}`, {
-    method: 'PUT',
+    method: "PUT",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     params: { ...queryParams },
     data: body,
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 DELETE /apps/user/${param0} */
@@ -134,12 +137,12 @@ export async function removeAppById(
   params: API.removeAppByIdParams,
   options?: { [key: string]: any }
 ) {
-  const { id: param0, ...queryParams } = params
+  const { id: param0, ...queryParams } = params;
   return request<API.BaseResponseremoveAppById>(`/apps/user/${param0}`, {
-    method: 'DELETE',
+    method: "DELETE",
     params: { ...queryParams },
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 GET /apps/user/code-stream */
@@ -148,27 +151,30 @@ export async function getCodeGenStream(
   params: API.getCodeGenStreamParams,
   options?: { [key: string]: any }
 ) {
-  return request<API.ServerSentEventString[]>('/apps/user/code-stream', {
-    method: 'GET',
+  return request<API.ServerSentEventString[]>("/apps/user/code-stream", {
+    method: "GET",
     params: {
       ...params,
       appCodeStreamQueryDTO: undefined,
-      ...params['appCodeStreamQueryDTO'],
+      ...params["appCodeStreamQueryDTO"],
     },
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 POST /apps/user/deployment */
-export async function deployApp(body: API.AppDeployRequestDTO, options?: { [key: string]: any }) {
-  return request<API.BaseResponsedeployApp>('/apps/user/deployment', {
-    method: 'POST',
+export async function deployApp(
+  body: API.AppDeployRequestDTO,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponsedeployApp>("/apps/user/deployment", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     data: body,
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 GET /apps/user/page/my-apps */
@@ -177,15 +183,15 @@ export async function getMyAppByPage(
   params: API.getMyAppByPageParams,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponsePageAppVO>('/apps/user/page/my-apps', {
-    method: 'GET',
+  return request<API.BaseResponsePageAppVO>("/apps/user/page/my-apps", {
+    method: "GET",
     params: {
       ...params,
       appQueryRequestDTO: undefined,
-      ...params['appQueryRequestDTO'],
+      ...params["appQueryRequestDTO"],
     },
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 GET /apps/user/preview/${param0} */
@@ -194,10 +200,10 @@ export async function previewApp(
   params: API.previewAppParams,
   options?: { [key: string]: any }
 ) {
-  const { appId: param0, ...queryParams } = params
+  const { appId: param0, ...queryParams } = params;
   return request<API.BaseResponsepreviewApp>(`/apps/user/preview/${param0}`, {
-    method: 'GET',
+    method: "GET",
     params: { ...queryParams },
     ...(options || {}),
-  })
+  });
 }

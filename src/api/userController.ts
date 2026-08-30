@@ -1,17 +1,20 @@
 // @ts-ignore
 /* eslint-disable */
-import request from '@/request'
+import request from "@/request";
 
 /** 此处后端没有提供注释 POST /users/admin */
-export async function saveUser(body: API.UserAddRequestDTO, options?: { [key: string]: any }) {
-  return request<API.BaseResponsesaveUser>('/users/admin', {
-    method: 'POST',
+export async function saveUser(
+  body: API.UserAddRequestDTO,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponsesaveUser>("/users/admin", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     data: body,
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 GET /users/admin/${param0} */
@@ -20,12 +23,12 @@ export async function getInfo(
   params: API.getInfoParams,
   options?: { [key: string]: any }
 ) {
-  const { id: param0, ...queryParams } = params
+  const { id: param0, ...queryParams } = params;
   return request<API.BaseResponseUser>(`/users/admin/${param0}`, {
-    method: 'GET',
+    method: "GET",
     params: { ...queryParams },
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 PUT /users/admin/${param0} */
@@ -35,16 +38,16 @@ export async function update(
   body: API.UserUpdateRequestDTO,
   options?: { [key: string]: any }
 ) {
-  const { id: param0, ...queryParams } = params
+  const { id: param0, ...queryParams } = params;
   return request<API.BaseResponseupdate>(`/users/admin/${param0}`, {
-    method: 'PUT',
+    method: "PUT",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     params: { ...queryParams },
     data: body,
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 DELETE /users/admin/${param0} */
@@ -53,12 +56,12 @@ export async function removeUserById(
   params: API.removeUserByIdParams,
   options?: { [key: string]: any }
 ) {
-  const { id: param0, ...queryParams } = params
+  const { id: param0, ...queryParams } = params;
   return request<API.BaseResponseremoveUserById>(`/users/admin/${param0}`, {
-    method: 'DELETE',
+    method: "DELETE",
     params: { ...queryParams },
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 GET /users/admin/page */
@@ -67,27 +70,30 @@ export async function getUserByPage(
   params: API.getUserByPageParams,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponsePageUser>('/users/admin/page', {
-    method: 'GET',
+  return request<API.BaseResponsePageUser>("/users/admin/page", {
+    method: "GET",
     params: {
       ...params,
       userQueryRequestDTO: undefined,
-      ...params['userQueryRequestDTO'],
+      ...params["userQueryRequestDTO"],
     },
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 POST /users/guest/login */
-export async function userLogin(body: API.UserLoginRequestDTO, options?: { [key: string]: any }) {
-  return request<API.BaseResponseUserVO>('/users/guest/login', {
-    method: 'POST',
+export async function userLogin(
+  body: API.UserLoginRequestDTO,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseUserVO>("/users/guest/login", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     data: body,
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 POST /users/guest/register */
@@ -95,28 +101,28 @@ export async function userRegister(
   body: API.UserRegisterRequestDTO,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponseuserRegister>('/users/guest/register', {
-    method: 'POST',
+  return request<API.BaseResponseuserRegister>("/users/guest/register", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     data: body,
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 GET /users/user/login-status */
 export async function getCurrentUser(options?: { [key: string]: any }) {
-  return request<API.BaseResponseUserVO>('/users/user/login-status', {
-    method: 'GET',
+  return request<API.BaseResponseUserVO>("/users/user/login-status", {
+    method: "GET",
     ...(options || {}),
-  })
+  });
 }
 
 /** 此处后端没有提供注释 POST /users/user/logout */
 export async function userLogout(options?: { [key: string]: any }) {
-  return request<API.BaseResponseuserLogout>('/users/user/logout', {
-    method: 'POST',
+  return request<API.BaseResponseuserLogout>("/users/user/logout", {
+    method: "POST",
     ...(options || {}),
-  })
+  });
 }

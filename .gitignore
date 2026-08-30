@@ -62,3 +62,9 @@ template/
 
 # Env type definition
 env.d.ts
+
+# Prototype files
+prototype/
+
+# Plan files
+plan/

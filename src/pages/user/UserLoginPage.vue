@@ -44,11 +44,12 @@
 import { userLogin } from '@/api/userController';
 import { useLoginUserStore } from '@/stores/loginUser';
 import { message } from 'ant-design-vue';
-import { reactive } from 'vue';
-import { useRouter } from 'vue-router';
+import { onMounted, reactive } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 
 const loginUserStore = useLoginUserStore();
 const router = useRouter();
+const route = useRoute();
 
 const formState = reactive<API.UserLoginRequestDTO>({
   userAccount: '',
@@ -68,6 +69,13 @@ const handleSubmit = async (values: any) => {
     message.error('登录失败，' + res.data.message)
   }
 };
+
+onMounted(() => {
+  if (route.query.prompt_login) {
+    message.warning('请先登录');
+    router.replace({query: {redirect: route.query.redirect}});
+  }
+})
 
 </script>
 

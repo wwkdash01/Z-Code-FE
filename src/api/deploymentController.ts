@@ -1,6 +1,6 @@
 // @ts-ignore
 /* eslint-disable */
-import request from '@/request'
+import request from "@/request";
 
 /** 此处后端没有提供注释 GET /deployments/${param0}/&#42;&#42; */
 export async function serveStaticResource(
@@ -8,10 +8,10 @@ export async function serveStaticResource(
   params: API.serveStaticResourceParams,
   options?: { [key: string]: any }
 ) {
-  const { deployKey: param0, ...queryParams } = params
+  const { deployKey: param0, ...queryParams } = params;
   return request<API.BaseResponseString>(`/deployments/${param0}/**`, {
-    method: 'GET',
+    method: "GET",
     params: { ...queryParams },
     ...(options || {}),
-  })
+  });
 }
