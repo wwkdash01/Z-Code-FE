@@ -40,10 +40,11 @@
 import { computed } from 'vue'
 import dayjs from 'dayjs'
 import annoImg from '@/assets/anno.png'
+import type { PreservedUser } from '@/types/long-preserve'
 
 const props = defineProps<{
   open: boolean
-  user: API.User | null
+  user: PreservedUser | null
 }>()
 
 const emit = defineEmits<{

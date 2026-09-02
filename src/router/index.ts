@@ -33,6 +33,11 @@ const router = createRouter({
       path: '/user/register',
       name: '用户注册',
       component: UserRegisterPage
+    },
+    {
+      path: '/app/app-edit',
+      name: '应用编辑',
+      component: () => import('../pages/app/AppEditPage.vue'),
     }
   ],
 })

@@ -59,8 +59,6 @@ export async function getAppByAdminPage(
     method: "GET",
     params: {
       ...params,
-      appAdminQueryRequestDTO: undefined,
-      ...params["appAdminQueryRequestDTO"],
     },
     ...(options || {}),
   });
@@ -76,8 +74,6 @@ export async function getFeaturedAppByPage(
     method: "GET",
     params: {
       ...params,
-      appQueryRequestDTO: undefined,
-      ...params["appQueryRequestDTO"],
     },
     ...(options || {}),
   });
@@ -187,8 +183,6 @@ export async function getMyAppByPage(
     method: "GET",
     params: {
       ...params,
-      appQueryRequestDTO: undefined,
-      ...params["appQueryRequestDTO"],
     },
     ...(options || {}),
   });

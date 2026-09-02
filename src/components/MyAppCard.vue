@@ -4,9 +4,10 @@ import { message } from 'ant-design-vue'
 import { getMyAppByPage } from '@/api/appController'
 import dayjs from 'dayjs'
 import { useLoginUserStore } from '@/stores/loginUser'
+import { getImgDegradation } from '@/utils/getImgDegradation'
 
 interface AppItem {
-  id: number
+  id: string
   appName?: string
   cover?: string
   createTime?: string
@@ -55,10 +56,16 @@ async function fetchData() {
   loading.value = true
   try {
     const res = await getMyAppByPage({
-      appQueryRequestDTO: { pageNum: 1, pageSize: props.pageSize ?? 20 },
+      pageNum: 1,
+      pageSize: props.pageSize ?? 20,
     })
     if (res.data.code === 200 && res.data.data) {
-      appList.value = res.data.data.records || []
+      const records = (res.data.data.records || []).map(app => ({
+        ...app,
+        cover: getImgDegradation(app.cover),
+      }))
+      // 运行时 id 已是 string（transformResponse 处理过），通过 unknown 桥接消除 TS 类型冲突
+      appList.value = records as unknown as AppItem[]
       updateDisplayApps()
     } else {
       message.warning(res.data.message || '获取应用列表失败')

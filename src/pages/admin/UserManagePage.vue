@@ -91,6 +91,7 @@ import { message } from 'ant-design-vue';
 import dayjs from 'dayjs'
 import UserInfoDetailCard from './UserInfoDetailCard.vue'
 import UserInfoEditCard from './UserInfoEditCard.vue'
+import type { PreservedUser } from '@/types/long-preserve'
 
 const columns = [
   {
@@ -128,7 +129,7 @@ const columns = [
 ];
 
 // 表格数据源
-const data = ref<API.User[]>()
+const data = ref<PreservedUser[]>()
 const total = ref(0)
 
 // 分页变量
@@ -179,7 +180,7 @@ const fetchData = async () => {
     })
 
     if (res.data.data) {
-        data.value = res.data.data.records ?? []
+        data.value = res.data.data.records as unknown as PreservedUser[] ?? []
         total.value = res.data.data.totalRow ?? 0
     } else {
         message.error('获取数据失败:' + res.data.message)
@@ -189,8 +190,8 @@ const fetchData = async () => {
 // 删除用户
 const deleteUser = async (record: API.User) => {
     const res = await removeUserById({
-        id: record.id!
-    })
+        id: record.id!,
+    } as unknown as API.removeUserByIdParams)
 
     if (res.data.data) {
         fetchData()
@@ -204,11 +205,12 @@ const deleteUser = async (record: API.User) => {
 const detailOpen = ref(false)
 
 // 当前查看的用户记录
-const detailRecord = ref<API.User | null>(null)
+const detailRecord = ref<PreservedUser | null>(null)
 
 // 展示用户详情卡片
 const showUserDetail = (record: API.User) => {
-    detailRecord.value = record
+    // 运行时 id 已是 string，通过 unknown 桥接消除 TS 类型冲突
+    detailRecord.value = record as unknown as PreservedUser
     detailOpen.value = true
 
 }
@@ -217,11 +219,11 @@ const showUserDetail = (record: API.User) => {
 const editOpen = ref(false)
 
 // 当前编辑的用户记录
-const editRecord = ref<API.User | null>(null)
+const editRecord = ref<PreservedUser | null>(null)
 
 // 展示用户编辑卡片
 const updateUser = (record: API.User) => {
-    editRecord.value = record
+    editRecord.value = record as unknown as PreservedUser
     editOpen.value = true
 }
 

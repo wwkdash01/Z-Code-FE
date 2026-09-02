@@ -26,23 +26,6 @@ declare namespace API {
     appTag?: "tool" | "webPage" | "profile";
   };
 
-  type AppAdminQueryRequestDTO = {
-    pageNum?: number;
-    pageSize?: number;
-    sortField?: string;
-    sortOrder?: string;
-    id?: number;
-    appName?: string;
-    cover?: string;
-    initPrompt?: string;
-    codeGenType?: string;
-    priority?: number;
-    appTag?: "tool" | "webPage" | "profile";
-    deployKey?: string;
-    deployTime?: string;
-    sortFieldValid?: boolean;
-  };
-
   type AppAdminUpdateRequestDTO = {
     appName?: string;
     cover?: string;
@@ -57,15 +40,6 @@ declare namespace API {
 
   type AppDeployRequestDTO = {
     appId: number;
-  };
-
-  type AppQueryRequestDTO = {
-    pageNum?: number;
-    pageSize?: number;
-    sortField?: string;
-    sortOrder?: string;
-    appName?: string;
-    sortFieldValid?: boolean;
   };
 
   type AppUpdateRequestDTO = {
@@ -211,7 +185,19 @@ declare namespace API {
   };
 
   type getAppByAdminPageParams = {
-    appAdminQueryRequestDTO: AppAdminQueryRequestDTO;
+    id?: number;
+    appName?: string;
+    cover?: string;
+    initPrompt?: string;
+    codeGenType?: string;
+    priority?: number;
+    appTag?: string;
+    deployKey?: string;
+    deployTime?: string;
+    pageNum?: number;
+    pageSize?: number;
+    sortField?: string;
+    sortOrder?: string;
   };
 
   type getAppByAdminParams = {
@@ -227,7 +213,13 @@ declare namespace API {
   };
 
   type getFeaturedAppByPageParams = {
-    appQueryRequestDTO: AppQueryRequestDTO;
+    appName?: string;
+    /** 应用标签：tool/webPage/profile */
+    appTag?: string;
+    sortField?: string;
+    pageNum?: number;
+    pageSize?: number;
+    sortOrder?: string;
   };
 
   type getInfoParams = {
@@ -235,7 +227,13 @@ declare namespace API {
   };
 
   type getMyAppByPageParams = {
-    appQueryRequestDTO: AppQueryRequestDTO;
+    appName?: string;
+    /** 应用标签：tool/webPage/profile */
+    appTag?: string;
+    sortField?: string;
+    pageNum?: number;
+    pageSize?: number;
+    sortOrder?: string;
   };
 
   type getUserByPageParams = {

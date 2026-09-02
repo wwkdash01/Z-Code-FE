@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { UploadOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons-vue'
 import MyAppCard from '@/components/MyAppCard.vue'
 import FeaturedAppCard from '@/components/FeaturedAppCard.vue'
+import { saveApp } from '@/api/appController'
 
-/**
- * 实例提示词标签
- */
+const router = useRouter()
 const examplePrompts = ref([
   '波音风电商首页',
   '企业网站',
@@ -19,6 +19,51 @@ const promptText = ref('')
 const uploading = ref(false)
 const optimizing = ref(false)
 const submitting = ref(false)
+
+// ========== App Info Modal ==========
+const showAppModal = ref(false)
+const appForm = reactive<API.AppAddRequestDTO>({
+  appName: '',
+  cover: '',
+  initPrompt: '',
+  codeGenType: 'singleton',
+  appTag: 'tool',
+})
+
+const handleOpenAppModal = () => {
+  if (!promptText.value.trim()) {
+    message.warning('请输入提示词')
+    return
+  }
+  appForm.initPrompt = promptText.value.trim()
+  showAppModal.value = true
+}
+
+const handleSaveApp = async () => {
+  if (!appForm.appName.trim()) {
+    message.warning('请输入应用名称')
+    return
+  }
+  submitting.value = true
+  try {
+    const res = await saveApp(appForm)
+    if (res.data.code === 200 && res.data.data != null) {
+      const appId = String(res.data.data)
+      message.success('应用创建成功')
+      showAppModal.value = false
+      router.push({
+        path: '/app/app-edit',
+        query: { id: appId.toString() },
+      })
+    } else {
+      message.error('创建失败：' + res.data.message)
+    }
+  } catch (e) {
+    message.error('创建失败')
+  } finally {
+    submitting.value = false
+  }
+}
 
 /**
  * 实例提示词点击 → 填充到输入框
@@ -58,26 +103,10 @@ async function handleOptimize() {
 }
 
 /**
- * 提交提示词
- * TODO: 调用 code-stream / preview / deploy 接口
+ * 提交提示词 → 弹出版应用信息填写框
  */
 async function handleSubmit() {
-  if (!promptText.value.trim()) {
-    message.warning('请输入提示词')
-    return
-  }
-  submitting.value = true
-  try {
-    // TODO: 调用代码生成接口，如 getCodeGenStream
-    // await getCodeGenStream({ appCodeStreamQueryDTO: { appId, userPrompt: promptText.value } })
-    // 或者调用部署接口
-    // await deployApp({ appId })
-    message.success('TODO: 提交功能待实现')
-  } catch (e) {
-    message.error('提交失败')
-  } finally {
-    submitting.value = false
-  }
+  handleOpenAppModal()
 }
 </script>
 
@@ -139,6 +168,67 @@ async function handleSubmit() {
 
   <!-- ========== 精选应用 ========== -->
   <FeaturedAppCard class="card-section" />
+
+  <!-- ========== 应用信息填写 Modal ========== -->
+  <a-modal
+    :open="showAppModal"
+    :width="640"
+    centered
+    @cancel="showAppModal = false"
+  >
+    <div class="app-info-modal">
+      <!-- 左栏：应用封面预览 -->
+      <div class="left-panel">
+        <div
+          class="cover-preview"
+          :style="{ backgroundImage: appForm.cover ? `url(${appForm.cover})` : undefined }"
+        >
+          <div v-if="!appForm.cover" class="cover-placeholder">
+            <UploadOutlined />
+          </div>
+        </div>
+        <div class="cover-hint">封面图（可选，填写 URL）</div>
+      </div>
+
+      <a-divider type="vertical" class="divider" />
+
+      <!-- 右栏：表单字段 -->
+      <div class="right-panel">
+        <div class="field-group">
+          <div class="field-item">
+            <label class="field-label">应用名称 <span class="required">*</span></label>
+            <a-input
+              v-model:value="appForm.appName"
+              placeholder="请输入应用名称"
+              :bordered="false"
+            />
+          </div>
+
+          <div class="field-item">
+            <label class="field-label">生成类型</label>
+            <a-radio-group v-model:value="appForm.codeGenType">
+              <a-radio value="singleton">单文件</a-radio>
+              <a-radio value="multifile">多文件</a-radio>
+            </a-radio-group>
+          </div>
+
+          <div class="field-item">
+            <label class="field-label">应用标签</label>
+            <a-radio-group v-model:value="appForm.appTag">
+              <a-radio value="tool">工具</a-radio>
+              <a-radio value="webPage">网页</a-radio>
+              <a-radio value="profile">个人博客</a-radio>
+            </a-radio-group>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <template #footer>
+      <a-button @click="showAppModal = false">取消</a-button>
+      <a-button type="primary" :loading="submitting" @click="handleSaveApp">确认创建</a-button>
+    </template>
+  </a-modal>
 </template>
 
 <style scoped>
@@ -260,5 +350,85 @@ async function handleSubmit() {
 /* ========== 卡片区块间距 ========== */
 .card-section {
   margin-bottom: 10px;
+}
+
+/* ========== App Info Modal ========== */
+.app-info-modal {
+  display: flex;
+  align-items: stretch;
+  gap: 24px;
+  min-height: 300px;
+}
+
+.left-panel {
+  flex-shrink: 0;
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.cover-preview {
+  width: 160px;
+  height: 100px;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.cover-preview :deep(.ant-icon) {
+  font-size: 24px;
+  color: #bfbfbf;
+}
+
+.cover-placeholder {
+  color: #bfbfbf;
+}
+
+.cover-hint {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.divider {
+  margin: 0 !important;
+  top: 0 !important;
+  height: auto !important;
+  align-self: stretch;
+}
+
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.required {
+  color: #ff4d4f;
 }
 </style>

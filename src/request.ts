@@ -1,11 +1,43 @@
 import axios from 'axios'
 import { message } from 'ant-design-vue'
 
+/**
+ * 安全整数阈值，超过此值的整数需要转为字符串保留精度
+ */
+const SAFE_INT_THRESHOLD = 9007199254740991 // Number.MAX_SAFE_INTEGER
+
+/**
+ * 递归将响应中超过安全整数范围的大整数转为字符串，避免 JS Number 精度丢失。
+ * 用于 axios transformResponse，在默认 JSON 解析之前执行。
+ */
+function preserveLongIntegrity(text: string): any {
+  if (!text) return null
+
+  /** 从 JSON 文本中匹配整数 token，超过阈值则返回字符串，否则返回原始数字 */
+  const rawJson = text.replace(
+    /(?<=:\s*)(-?\d+)(?=[,\s\n\r\}\]])/g,
+    (_match, numStr) => {
+      const n = Number(numStr)
+      if (Number.isSafeInteger(n)) return numStr
+      // 超出安全范围的整数：转字符串保留精度
+      return `"${numStr}"`
+    },
+  )
+
+  try {
+    return JSON.parse(rawJson)
+  } catch {
+    // 非 JSON 响应（如 SSE），原样返回
+    return text
+  }
+}
+
 // 创建 Axios 实例
 const myAxios = axios.create({
   baseURL: 'http://localhost:58080/api',
   timeout: 60000,
   withCredentials: true,
+  transformResponse: [(data) => preserveLongIntegrity(typeof data === 'string' ? data : String(data))],
 })
 
 // 全局请求拦截器

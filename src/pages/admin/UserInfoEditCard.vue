@@ -78,10 +78,11 @@ import { message } from 'ant-design-vue'
 import { CameraOutlined } from '@ant-design/icons-vue'
 import { update } from '@/api/userController'
 import annoImg from '@/assets/anno.png'
+import type { PreservedUser } from '@/types/long-preserve'
 
 const props = defineProps<{
   open: boolean
-  user: API.User | null
+  user: PreservedUser | null
 }>()
 
 const emit = defineEmits<{
@@ -144,7 +145,7 @@ const submitEdit = async () => {
             message.info('模拟头像变更')
         }
         const res = await update(
-            { id: props.user.id },
+            { id: props.user.id! } as unknown as API.updateParams,
             {
                 userAccount: editForm.userAccount,
                 userName: editForm.userName,
