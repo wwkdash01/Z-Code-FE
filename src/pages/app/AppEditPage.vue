@@ -57,28 +57,8 @@ const activeTab = ref('preview')
 const deployUrlInput = ref('')
 const codeContent = ref('')
 
-// ========== 打字机效果 ==========
-let typeInterval: ReturnType<typeof setInterval> | null = null
-
-function typeWriterEffect(text: string, el?: HTMLElement) {
-  if (typeInterval) clearInterval(typeInterval)
-  let i = 0
-  typeInterval = setInterval(() => {
-    if (i < text.length) {
-      if (el) {
-        el.textContent = text.substring(0, i + 1)
-      } else {
-        aiResponse.value = text.substring(0, i + 1)
-      }
-      i++
-    } else {
-      clearInterval(typeInterval!)
-      typeInterval = null
-      streamFinished.value = true
-      isGenerating.value = false
-    }
-  }, 30) // 30ms 每字符
-}
+// SSE stream reader reference for cleanup
+let streamReader: ReadableStreamDefaultReader | null = null
 
 // ========== 获取应用信息 ==========
 async function fetchAppData() {
@@ -143,13 +123,13 @@ async function handleGenerateCode(prompt: string): Promise<void> {
       throw new Error(`SSE request failed with status ${response.status}`)
     }
 
-    const reader = response.body.getReader()
+    streamReader = response.body.getReader()
     const decoder = new TextDecoder()
     let fullText = ''
     let buffer = ''
 
     while (true) {
-      const { done, value } = await reader.read()
+      const { done, value } = await streamReader.read()
       if (done) break
 
       buffer += decoder.decode(value, { stream: true })
@@ -162,7 +142,6 @@ async function handleGenerateCode(prompt: string): Promise<void> {
 
         // event="done" 表示流结束
         if (trimmed === 'event:done') {
-          typeWriterEffect(fullText)
           isGenerating.value = false
           streamFinished.value = true
           return
@@ -184,15 +163,14 @@ async function handleGenerateCode(prompt: string): Promise<void> {
         }
       }
     }
-
-    // 正常读完没有 done 事件
-    typeWriterEffect(fullText)
-    isGenerating.value = false
-    streamFinished.value = true
   } catch (e) {
     isGenerating.value = false
     message.warning('连接断开，请检查后端是否启动')
     throw e
+  } finally {
+    // 流结束（正常或异常），统一标记完成状态
+    isGenerating.value = false
+    streamFinished.value = true
   }
 }
 
@@ -249,7 +227,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  if (typeInterval) clearInterval(typeInterval)
+  if (streamReader) streamReader.cancel()
 })
 </script>
 
