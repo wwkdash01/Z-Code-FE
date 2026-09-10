@@ -1,15 +1,21 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { ref } from 'vue'
 import defaultAvatar from '@/assets/anno.png'
+import { renderMarkdown } from '@/utils/markdown'
 
 const props = defineProps<{
   sender: 'user' | 'ai'
   content: string
   avatarUrl: string
   renderState?: 'history' | 'loading' | 'streaming' | 'done'
+  asMarkdown?: boolean
 }>()
 
 const avatarFailed = ref(false)
+
+// Markdown HTML — null means plain text display (safe during streaming)
+const html = computed(() => props.asMarkdown ? renderMarkdown(props.content) : null)
 </script>
 
 <template>
@@ -33,7 +39,7 @@ const avatarFailed = ref(false)
         {{ content }}<span class="t-cursor">|</span>
       </div>
       <!-- AI done / history -->
-      <div v-else-if="sender === 'ai'" class="bb">{{ content }}</div>
+      <div v-else-if="sender === 'ai'" class="bb" :class="{ 'has-md': html }" v-html="html || content"></div>
       <!-- User message -->
       <div v-else class="bb">{{ content }}</div>
     </div>
@@ -132,6 +138,34 @@ const avatarFailed = ref(false)
 .bb.bub-stream {
   max-width: 90%;
 }
+
+/* Markdown rendered inside .bb via :deep selectors */
+.bb.has-md :deep(h1) { font-size: 1.5rem; margin: 0.5rem 0; }
+.bb.has-md :deep(h2) { font-size: 1.25rem; margin: 0.5rem 0; }
+.bb.has-md :deep(h3) { font-size: 1.1rem; margin: 0.5rem 0; }
+.bb.has-md :deep(p) { margin: 0.5rem 0; }
+.bb.has-md :deep(ul),
+.bb.has-md :deep(ol) { padding-left: 1.5rem; margin: 0.5rem 0; }
+.bb.has-md :deep(a) { color: #0969da; text-decoration: none; }
+.bb.has-md :deep(a:hover) { text-decoration: underline; }
+.bb.has-md :deep(pre) { overflow-x: auto; }
+.bb.has-md :deep(.vscode-code-block) {
+  margin: 0.5rem 0; position: relative; background: #1e1e1e; border-radius: 8px; overflow: hidden; display: block;
+}
+.bb.has-md :deep(.vscode-header) {
+  background: #2d2d2d; color: #999; padding: 4px 14px; font-size: 12px; user-select: none;
+}
+.bb.has-md :deep(.vscode-code-block pre) {
+  max-height: 320px; overflow: auto !important; margin: 0; padding: 12px 16px; scrollbar-width: thin; scrollbar-color: #555 #1e1e1e;
+}
+.bb.has-md :deep(.vscode-code-block code) {
+  font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 13px; white-space: pre; color: #d4d4d4;
+}
+.bb.has-md :deep(.copy-btn) {
+  position: absolute; top: 8px; right: 12px; background: #3c3c3c; color: #ccc; border: none; padding: 3px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; opacity: 0; transition: opacity 0.2s;
+}
+.bb.has-md :deep(.vscode-code-block:hover .copy-btn) { opacity: 1; }
+.bb.has-md :deep(.copy-btn:hover) { background: #505050; color: #fff; }
 
 .t-cursor {
   color: #00b894;

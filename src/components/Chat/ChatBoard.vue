@@ -243,6 +243,7 @@ function scrollToBottom() {
         :content="msg.content"
         :avatar-url="msg.avatarUrl"
         :render-state="msg.renderState"
+        :as-markdown="msg.sender === 'ai'"
       />
       <div v-if="!messages.length" class="empty-hint">暂无消息，开始对话吧</div>
     </div>
