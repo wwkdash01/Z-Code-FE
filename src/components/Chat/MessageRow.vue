@@ -1,15 +1,21 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { ref } from 'vue'
 import defaultAvatar from '@/assets/anno.png'
+import { renderMarkdown } from '@/utils/markdown'
 
 const props = defineProps<{
   sender: 'user' | 'ai'
   content: string
   avatarUrl: string
   renderState?: 'history' | 'loading' | 'streaming' | 'done'
+  asMarkdown?: boolean
 }>()
 
 const avatarFailed = ref(false)
+
+// Markdown HTML — null means plain text display (safe during streaming)
+const html = computed(() => props.asMarkdown ? renderMarkdown(props.content) : null)
 </script>
 
 <template>
@@ -28,12 +34,15 @@ const avatarFailed = ref(false)
         <span class="di-dot"></span>
         <span class="di-dot"></span>
       </div>
-      <!-- AI streaming -->
+      <!-- AI streaming: plain text only (avoids unbalanced HTML) -->
       <div v-else-if="sender === 'ai' && renderState === 'streaming'" class="bb bub-stream">
         {{ content }}<span class="t-cursor">|</span>
       </div>
       <!-- AI done / history -->
-      <div v-else-if="sender === 'ai'" class="bb">{{ content }}</div>
+      <div v-else-if="sender === 'ai'" class="bb" :class="{ 'has-markdown': html }">
+        <template v-if="html"><div class="md-render" v-html="html"></div></template>
+        <template v-else>{{ content }}</template>
+      </div>
       <!-- User message -->
       <div v-else class="bb">{{ content }}</div>
     </div>
