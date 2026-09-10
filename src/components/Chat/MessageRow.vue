@@ -105,6 +105,7 @@ const html = computed(() => props.asMarkdown ? renderMarkdown(props.content) : n
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   width: fit-content;
   max-width: 90%;
+  /* Changed from display: flex → block so markdown content doesn't break layout */
 }
 
 /* AI messages: gray, right-aligned */
