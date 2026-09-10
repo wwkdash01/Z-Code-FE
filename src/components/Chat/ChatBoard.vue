@@ -192,11 +192,11 @@ function getMsgKey(msg: ShallowRef<ChatMessage>, idx: number): string {
       <MessageRow
         v-for="(msg, idx) in messages"
         :key="getMsgKey(msg, idx)"
-        :sender="msg.sender"
-        :content="msg.content"
-        :avatar-url="msg.avatarUrl"
-        :render-state="msg.renderState"
-        :as-markdown="msg.sender === 'ai'"
+        :sender="msg.value.sender"
+        :content="msg.value.content"
+        :avatar-url="msg.value.avatarUrl"
+        :render-state="msg.value.renderState"
+        :as-markdown="msg.value.sender === 'ai'"
       />
       <div v-if="!messages.length" class="empty-hint">暂无消息，开始对话吧</div>
     </div>
