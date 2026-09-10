@@ -39,10 +39,7 @@ const html = computed(() => props.asMarkdown ? renderMarkdown(props.content) : n
         {{ content }}<span class="t-cursor">|</span>
       </div>
       <!-- AI done / history -->
-      <div v-else-if="sender === 'ai'" class="bb" :class="{ 'has-markdown': html }">
-        <template v-if="html"><div class="md-render" v-html="html"></div></template>
-        <template v-else>{{ content }}</template>
-      </div>
+      <div v-else-if="sender === 'ai'" class="bb" :class="{ 'has-markdown': html }" v-html="html || content"></div>
       <!-- User message -->
       <div v-else class="bb">{{ content }}</div>
     </div>
