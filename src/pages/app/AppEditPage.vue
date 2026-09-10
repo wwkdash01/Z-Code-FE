@@ -1,28 +1,25 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { message, Segmented, Input, Button, Tag, Avatar, Divider } from 'ant-design-vue'
+import { message, Segmented, Button } from 'ant-design-vue'
 import {
-  SaveOutlined,
   SendOutlined,
   UploadOutlined,
   RobotOutlined,
   EditOutlined,
-  CodeOutlined,
-  EyeOutlined,
   SettingOutlined,
   MenuOutlined,
   BarsOutlined,
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import { getAppById, getCodeGenStream /* , previewApp */, deployApp } from '@/api/appController'
+import { getAppById, deployApp } from '@/api/appController'
 import { getImgDegradation } from '@/utils/getImgDegradation'
 import annoImg from '@/assets/anno.png'
 import { useLoginUserStore } from '@/stores/loginUser'
 import type { PreservedAppVO } from '@/types/long-preserve'
 import ChatContainer from '@/components/Chat/ChatContainer.vue'
-import MessageRow from '@/components/Chat/MessageRow.vue'
 
+// ========== 开启路由/用户登录状态 ==========
 const route = useRoute()
 const router = useRouter()
 const loginUserStore = useLoginUserStore()

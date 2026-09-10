@@ -151,8 +151,6 @@ export async function getCodeGenStream(
     method: "GET",
     params: {
       ...params,
-      appCodeStreamQueryDTO: undefined,
-      ...params["appCodeStreamQueryDTO"],
     },
     ...(options || {}),
   });

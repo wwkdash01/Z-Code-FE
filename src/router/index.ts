@@ -1,6 +1,7 @@
 import UserManagePage from '@/pages/admin/UserManagePage.vue'
 import UserLoginPage from '@/pages/user/UserLoginPage.vue'
 import UserRegisterPage from '@/pages/user/UserRegisterPage.vue'
+import TestPage from '@/pages/test/TestPage.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
@@ -38,6 +39,11 @@ const router = createRouter({
       path: '/app/app-edit',
       name: '应用编辑',
       component: () => import('../pages/app/AppEditPage.vue'),
+    },
+    {
+      path: '/test',
+      name: '测试页',
+      component: TestPage
     }
   ],
 })

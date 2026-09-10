@@ -146,7 +146,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 32px;
-  height: 56px;
+  height: 8vh;
   padding: 0 24px;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;

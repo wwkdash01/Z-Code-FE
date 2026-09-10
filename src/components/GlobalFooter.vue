@@ -10,10 +10,10 @@ const footerText = 'wwk z-code platform by wwk'
 
 <style scoped>
 .global-footer {
-  display: flex;
+  position: sticky;
   align-items: center;
   justify-content: center;
-  height: 48px;
+  height: 8vh;
   padding: 0 24px;
   color: rgba(0, 0, 0, 0.45);
   font-size: 14px;

@@ -1,6 +1,7 @@
 declare namespace API {
   type App = {
-    id?: number;
+    /** 应用主键ID */
+    id?: string;
     appName?: string;
     cover?: string;
     appTag?: "tool" | "webPage" | "profile";
@@ -11,7 +12,8 @@ declare namespace API {
     deployKey?: string;
     deployDir?: string;
     deployTime?: string;
-    createUserId?: number;
+    /** 创建者ID */
+    createUserId?: string;
     editTime?: string;
     createTime?: string;
     updateTime?: string;
@@ -33,13 +35,9 @@ declare namespace API {
     appTag?: "tool" | "webPage" | "profile";
   };
 
-  type AppCodeStreamQueryDTO = {
-    appId: number;
-    userPrompt: string;
-  };
-
   type AppDeployRequestDTO = {
-    appId: number;
+    /** 应用主键ID */
+    appId: string;
   };
 
   type AppUpdateRequestDTO = {
@@ -47,7 +45,8 @@ declare namespace API {
   };
 
   type AppVO = {
-    id?: number;
+    /** 应用主键ID */
+    id?: string;
     appName?: string;
     cover?: string;
     initPrompt?: string;
@@ -56,6 +55,12 @@ declare namespace API {
     createTime?: string;
     userName?: string;
     userAvatar?: string;
+  };
+
+  type BaseResponseaddChatHistory = {
+    code?: number;
+    message?: any;
+    data?: number;
   };
 
   type BaseResponseApp = {
@@ -68,6 +73,18 @@ declare namespace API {
     code?: number;
     message?: any;
     data?: AppVO;
+  };
+
+  type BaseResponseChatHistoryUserCursorPageVO = {
+    code?: number;
+    message?: any;
+    data?: ChatHistoryUserCursorPageVO;
+  };
+
+  type BaseResponseChatHistoryVO = {
+    code?: number;
+    message?: any;
+    data?: ChatHistoryVO;
   };
 
   type BaseResponsedeployApp = {
@@ -94,6 +111,12 @@ declare namespace API {
     data?: PageAppVO;
   };
 
+  type BaseResponsePageChatHistory = {
+    code?: number;
+    message?: any;
+    data?: PageChatHistory;
+  };
+
   type BaseResponsePageUser = {
     code?: number;
     message?: any;
@@ -113,6 +136,12 @@ declare namespace API {
   };
 
   type BaseResponseremoveAppById = {
+    code?: number;
+    message?: any;
+    data?: boolean;
+  };
+
+  type BaseResponseremoveChatHistoryByAdmin = {
     code?: number;
     message?: any;
     data?: boolean;
@@ -184,8 +213,56 @@ declare namespace API {
     data?: UserVO;
   };
 
+  type ChatHistory = {
+    /** 会话记录主键ID */
+    id?: string;
+    /** 关联应用ID */
+    appId?: string;
+    /** 关联用户ID */
+    userId?: string;
+    message?: string;
+    /** 消息类型：user=用户消息，ai=AI回复 */
+    messageType?: string;
+    editTime?: string;
+    createTime?: string;
+    updateTime?: string;
+    isDelete?: number;
+  };
+
+  type ChatHistoryAddRequestDTO = {
+    /** 关联应用ID */
+    appId: string;
+    /** 消息内容 */
+    message: string;
+    /** 消息类型：user=用户消息，ai=AI回复 */
+    messageType: string;
+  };
+
+  type ChatHistoryUserCursorPageVO = {
+    /** 当前页消息列表 */
+    records?: ChatHistoryVO[];
+    /** 是否有更多数据 */
+    hasMore?: boolean;
+    /** 下一页游标 */
+    nextCursor?: string;
+  };
+
+  type ChatHistoryVO = {
+    /** 关联应用ID */
+    appId?: string;
+    /** 关联用户ID */
+    userId?: string;
+    /** 消息内容 */
+    message?: string;
+    /** 消息类型：user=用户消息，ai=AI回复 */
+    messageType?: string;
+    /** 创建时间 */
+    createTime?: string;
+  };
+
   type getAppByAdminPageParams = {
-    id?: number;
+    /** 应用主键ID */
+    id?: string;
     appName?: string;
     cover?: string;
     initPrompt?: string;
@@ -201,15 +278,39 @@ declare namespace API {
   };
 
   type getAppByAdminParams = {
-    id: number;
+    /** 应用ID */
+    id: any;
   };
 
   type getAppByIdParams = {
-    id: number;
+    /** 应用ID */
+    id: any;
+  };
+
+  type getChatHistoryByAdminPageParams = {
+    /** 记录主键ID */
+    id?: string;
+    /** 关联应用ID */
+    appId?: string;
+    /** 关联用户ID */
+    userId?: string;
+    /** 消息类型过滤：user/ai */
+    messageType?: string;
+    pageNum?: number;
+    pageSize?: number;
+    sortField?: string;
+    sortOrder?: string;
+  };
+
+  type getChatHistoryByIdParams = {
+    /** 聊天记录ID */
+    id: any;
   };
 
   type getCodeGenStreamParams = {
-    appCodeStreamQueryDTO: AppCodeStreamQueryDTO;
+    /** 应用主键ID */
+    appId: string;
+    userPrompt: string;
   };
 
   type getFeaturedAppByPageParams = {
@@ -223,7 +324,8 @@ declare namespace API {
   };
 
   type getInfoParams = {
-    id: number;
+    /** 用户ID */
+    id: any;
   };
 
   type getMyAppByPageParams = {
@@ -258,6 +360,15 @@ declare namespace API {
     optimizeCountQuery?: boolean;
   };
 
+  type PageChatHistory = {
+    records?: ChatHistory[];
+    pageNumber?: number;
+    pageSize?: number;
+    totalPage?: number;
+    totalRow?: number;
+    optimizeCountQuery?: boolean;
+  };
+
   type PageUser = {
     records?: User[];
     pageNumber?: number;
@@ -268,19 +379,41 @@ declare namespace API {
   };
 
   type previewAppParams = {
-    appId: number;
+    /** 应用ID */
+    appId: any;
+  };
+
+  type queryChatHistoryByCursorParams = {
+    /** 关联应用ID */
+    appId?: string;
+    /** 消息类型过滤：user/ai */
+    messageType?: string;
+    /** 翻页游标，首次加载不传 */
+    cursor?: string;
+    pageNum?: number;
+    pageSize?: number;
+    sortField?: string;
+    sortOrder?: string;
   };
 
   type removeAppByAdminParams = {
-    id: number;
+    /** 应用ID */
+    id: any;
   };
 
   type removeAppByIdParams = {
-    id: number;
+    /** 应用ID */
+    id: any;
+  };
+
+  type removeChatHistoryByAdminParams = {
+    /** 聊天记录ID */
+    id: any;
   };
 
   type removeUserByIdParams = {
-    id: number;
+    /** 用户ID */
+    id: any;
   };
 
   type ServerSentEventString = Record<string, any>;
@@ -290,19 +423,23 @@ declare namespace API {
   };
 
   type updateAppByAdminParams = {
-    id: number;
+    /** 应用ID */
+    id: any;
   };
 
   type updateAppByIdParams = {
-    id: number;
+    /** 应用ID */
+    id: any;
   };
 
   type updateParams = {
-    id: number;
+    /** 用户ID */
+    id: any;
   };
 
   type User = {
-    id?: number;
+    /** 用户主键ID */
+    id?: string;
     userAccount?: string;
     userPassword?: string;
     userName?: string;
@@ -311,9 +448,11 @@ declare namespace API {
     userRole?: string;
     vipExpireTime?: string;
     vipCode?: string;
-    vipId?: number;
+    /** 会员ID */
+    vipId?: string;
     shareCode?: string;
-    inviteUser?: number;
+    /** 邀请人ID */
+    inviteUser?: string;
     editTime?: string;
     createTime?: string;
     updateTime?: string;
@@ -329,9 +468,11 @@ declare namespace API {
     userRole?: string;
     vipExpireTime?: string;
     vipCode?: string;
-    vipId?: number;
+    /** 会员ID */
+    vipId?: string;
     shareCode?: string;
-    inviteUser?: number;
+    /** 邀请人ID */
+    inviteUser?: string;
   };
 
   type UserLoginRequestDTO = {
@@ -344,11 +485,13 @@ declare namespace API {
     pageSize?: number;
     sortField?: string;
     sortOrder?: string;
-    id?: number;
+    /** 用户主键ID */
+    id?: string;
     userAccount?: string;
     userRole?: string;
     userName?: string;
-    vipId?: number;
+    /** 会员ID */
+    vipId?: string;
   };
 
   type UserRegisterRequestDTO = {
@@ -367,16 +510,19 @@ declare namespace API {
   };
 
   type UserVO = {
-    id?: number;
+    /** 用户主键ID */
+    id?: string;
     userAccount?: string;
     userName?: string;
     userAvatar?: string;
     userProfile?: string;
     userRole?: string;
     vipExpireTime?: string;
-    vipId?: number;
+    /** 会员ID */
+    vipId?: string;
     shareCode?: string;
-    inviteUser?: number;
+    /** 邀请人ID */
+    inviteUser?: string;
     editTime?: string;
     createTime?: string;
     updateTime?: string;

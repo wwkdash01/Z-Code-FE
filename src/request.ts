@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { message } from 'ant-design-vue'
+import { redirect2Login } from '@/utils/auth'
 
 /**
  * 安全整数阈值，超过此值的整数需要转为字符串保留精度
@@ -34,6 +34,7 @@ function preserveLongIntegrity(text: string): any {
 
 // 创建 Axios 实例
 const myAxios = axios.create({
+  // 开发阶段先写死，生产环节用  baseURL: '/api' + nginx 反向代理
   baseURL: 'http://localhost:58080/api',
   timeout: 60000,
   withCredentials: true,
@@ -64,8 +65,9 @@ myAxios.interceptors.response.use(
       // 用户相关接口不触发跳转，由页面自行处理
       const isUserRequest = url.includes('/users/')
       const isLoginPage = window.location.pathname.includes('/user/login')
+
       if (!isUserRequest && !isLoginPage) {
-        window.location.href = `/user/login?prompt_login=1&redirect=${window.location.href}`
+        redirect2Login()
       }
     }
     return response

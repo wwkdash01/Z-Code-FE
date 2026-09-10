@@ -9,6 +9,7 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   { key: 'home', label: '首页', path: '/' },
   { key: 'about', label: '关于', path: '/about' },
-  { key: 'user-manager', label: '用户管理', path: '/admin/user-manager'}
+  { key: 'user-manager', label: '用户管理', path: '/admin/user-manager'},
+  { key: 'test', label: '测试', path: '/test'}
 ]
 
