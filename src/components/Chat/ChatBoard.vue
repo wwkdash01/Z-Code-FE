@@ -180,8 +180,8 @@ function scrollToBottom() {
     <!-- Middle: Messages -->
     <div class="chat-board-content">
       <MessageRow
-        v-for="msg in messages"
-        :key="msg.uid"
+        v-for="(msg, idx) in messages"
+        :key="idx"
         :sender="msg.sender"
         :content="msg.content"
         :avatar-url="msg.avatarUrl"
