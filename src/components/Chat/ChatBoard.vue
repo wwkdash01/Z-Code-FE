@@ -6,9 +6,9 @@ import { Button as AButton } from 'ant-design-vue'
 import { Textarea as ATextarea } from 'ant-design-vue'
 import { queryChatHistoryByCursor } from '@/api/chatHistoryController'
 import MessageRow from './MessageRow.vue'
-import { fetchEventSource } from '@microsoft/fetch-event-source'
 import annoImg from '@/assets/anno.png'
 import { API_BASE } from '@/config/api'
+import { useStreaming } from '@/composables/useStreaming'
 
 // ---------- types ----------
 interface ChatMessage {
@@ -120,41 +120,34 @@ async function sendMessage() {
   isGenerating.value = true
   scrollToBottom()
 
-  // 3. SSE streaming
+  // 3. SSE streaming via composable
   const url = `${API_BASE}/apps/user/code-stream?appId=${props.appId}&userPrompt=${encodeURIComponent(text)}`
+  let streamingFlag = ref(false)
 
-  try {
-    await fetchEventSource(url, {
-      credentials: 'include',
-      onmessage(event) {
-        try {
-          const parsed = JSON.parse(event.data)
-          aiMsg.content += parsed.d || parsed.data || parsed.content || ''
-        } catch {
-          aiMsg.content += event.data
-        }
-        if (aiMsg.renderState !== 'streaming') {
-          aiMsg.renderState = 'streaming'
-        }
-        scrollToBottom()
-      },
-      onerror(err) {
-        console.error('[ChatBoard] SSE error:', err)
-        aiMsg.content = '[连接错误，请稍后重试]'
-        aiMsg.renderState = 'done'
-        message.error('AI 响应失败')
-      },
-    })
-    // Stream completed successfully
-    aiMsg.renderState = 'done'
-  } catch (err) {
-    console.error('[ChatBoard] SSE error:', err)
-    aiMsg.content = '[连接错误，请稍后重试]'
-    aiMsg.renderState = 'done'
-    message.error('AI 响应失败')
-  } finally {
-    isGenerating.value = false
-  }
+  isGenerating.value = true
+  streamingFlag.value = false
+
+  const { startStream } = useStreaming({
+    url,
+    onData: (chunk) => {
+      aiMsg.content += chunk
+      if (aiMsg.renderState !== 'streaming') aiMsg.renderState = 'streaming'
+      scrollToBottom()
+    },
+    onComplete: () => {
+      isGenerating.value = false
+      aiMsg.renderState = 'done'
+    },
+    onError: (err) => {
+      console.error('[ChatBoard] SSE error:', err)
+      isGenerating.value = false
+      aiMsg.content = '[连接错误，请稍后重试]'
+      aiMsg.renderState = 'done'
+      message.error('AI 响应失败')
+    },
+  })
+
+  startStream()
 }
 
 // ---------- scroll (throttled via RAF cancel) ----------
