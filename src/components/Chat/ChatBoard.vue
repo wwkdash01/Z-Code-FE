@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, type ShallowRef } from 'vue'
+import { ref, onMounted, shallowRef, type ShallowRef } from 'vue'
 import { useLoginUserStore } from '@/stores/loginUser'
 import { message } from 'ant-design-vue'
 import { Button as AButton } from 'ant-design-vue'
@@ -23,7 +23,7 @@ interface ChatMessage {
 const props = defineProps<{ appId: string }>()
 
 const loginUserStore = useLoginUserStore()
-const USER_AVATAR = loginUserStore.loginUser.value?.userAvatar || annoImg
+const USER_AVATAR = loginUserStore.loginUser.value?.userAvatar ?? annoImg
 const AI_AVATAR = annoImg
 
 /** Each element is a shallow ref — Vue tracks property mutations reliably */
@@ -61,17 +61,21 @@ onMounted(async () => {
 
 async function loadHistory() {
   try {
-    const data = await fetchMessages<API.ChatHistoryUserCursorPageVO>({
-      appId: props.appId,
-    })
-    if (!data || !data.records?.length) {
+    const res = await queryChatHistoryByCursor({ appId: String(props.appId) })
+    if (!res?.data || res.data.code !== 200 || !res.data.data) {
       message.info('暂无聊天记录')
       return
     }
-    appendRecords(data.records)
-    cursor.value = data.nextCursor
-    hasMore.value = data.hasMore ?? true
-  } catch {
+    const records = (res.data.data.records || []) as API.ChatHistoryVO[]
+    if (records.length === 0) {
+      message.info('暂无聊天记录')
+      return
+    }
+    appendRecords(records)
+    cursor.value = res.data.data.nextCursor
+    hasMore.value = res.data.data.hasMore ?? true
+  } catch (err) {
+    console.error('[ChatBoard] loadHistory error:', err)
     message.error('加载历史消息失败')
   }
 }
