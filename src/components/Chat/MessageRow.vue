@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { ref } from 'vue'
 import defaultAvatar from '@/assets/anno.png'
 
@@ -7,9 +8,43 @@ const props = defineProps<{
   content: string
   avatarUrl: string
   renderState?: 'history' | 'loading' | 'streaming' | 'done'
+  asMarkdown?: boolean
 }>()
 
 const avatarFailed = ref(false)
+
+// Lightweight markdown rendering: returns fragments with simple span wrappers
+// Only supports: bold (**), italic (*), inline code (`), links [text](url)
+const renderedParts = computed(() => {
+  if (!props.asMarkdown || !props.content) return [{ type: 'text', value: props.content }]
+  const parts: Array<{ type: string; value: string }> = []
+  // Regex-based tokenizer for inline markdown
+  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[.*?\]\(.*?\))/g
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = regex.exec(props.content)) !== null) {
+    const raw = match[0]
+    const before = props.content.slice(lastIndex, match.index)
+    if (before) parts.push({ type: 'text', value: before })
+    if (raw.startsWith('**') && raw.endsWith('**')) {
+      parts.push({ type: 'strong', value: raw.slice(2, -2) })
+    } else if (raw.startsWith('*') && raw.endsWith('*')) {
+      parts.push({ type: 'em', value: raw.slice(1, -1) })
+    } else if (raw.startsWith('`') && raw.endsWith('`')) {
+      parts.push({ type: 'code', value: raw.slice(1, -1) })
+    } else if (raw.startsWith('[')) {
+      const linkMatch = /\[(.*?)\]\((.*?)\)/.exec(raw)
+      if (linkMatch) {
+        parts.push({ type: 'link', value: linkMatch[1], href: linkMatch[2] })
+      }
+    }
+    lastIndex = match.index + raw.length
+  }
+  const remaining = props.content.slice(lastIndex)
+  if (remaining) parts.push({ type: 'text', value: remaining })
+  return parts.length > 0 ? parts : [{ type: 'text', value: props.content }]
+})
 </script>
 
 <template>
@@ -33,7 +68,15 @@ const avatarFailed = ref(false)
         {{ content }}<span class="t-cursor">|</span>
       </div>
       <!-- AI done / history -->
-      <div v-else-if="sender === 'ai'" class="bb">{{ content }}</div>
+      <div v-else-if="sender === 'ai'" class="bb">
+        <template v-for="(part, idx) in renderedParts" :key="idx">
+          <strong v-if="part.type === 'strong'">{{ part.value }}</strong>
+          <em v-else-if="part.type === 'em'">{{ part.value }}</em>
+          <code v-else-if="part.type === 'code'" class="md-code">{{ part.value }}</code>
+          <a v-else-if="part.type === 'link'" :href="part.href">{{ part.value }}</a>
+          <span v-else>{{ part.value }}</span>
+        </template>
+      </div>
       <!-- User message -->
       <div v-else class="bb">{{ content }}</div>
     </div>
@@ -131,6 +174,15 @@ const avatarFailed = ref(false)
 
 .bb.bub-stream {
   max-width: 90%;
+}
+
+.md-code {
+  background-color: rgba(0, 0, 0, 0.06);
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  color: #e83e8c;
 }
 
 .t-cursor {
