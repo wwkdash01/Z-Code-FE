@@ -144,6 +144,24 @@ const html = computed(() => props.asMarkdown ? renderMarkdown(props.content) : n
   max-width: 90%;
 }
 
+/* Markdown rendering: prevent children from breaking layout */
+.md-render {
+  max-width: 100%;
+}
+.md-render :deep(h1), .md-render :deep(h2), .md-render :deep(h3) {
+  margin: 0.5rem 0;
+}
+.md-render :deep(p) {
+  margin: 0.5rem 0;
+}
+.md-render :deep(ul), .md-render :deep(ol) {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+.md-render :deep(pre) {
+  overflow-x: auto;
+}
+
 .t-cursor {
   color: #00b894;
   animation: tblink 1s infinite;
