@@ -157,56 +157,6 @@ async function sendMessage() {
   }
 }
 
-// ---------- refresh history (保留备用) ----------
-async function refreshHistory() {
-  try {
-    const freshData = await fetchMessages<API.ChatHistoryUserCursorPageVO>({
-      appId: props.appId,
-    })
-    if (!freshData) return
-
-    // Extract latest records from API (last 2 entries: user + ai)
-    const freshRecords = freshData.records || []
-    if (!freshRecords.length) return
-
-    // Build sets of content to identify what changed
-    const oldContents = new Set(messages.value.map((m) => m.content))
-
-    // Find records that are NOT already in messages
-    const newRecords = freshRecords.filter((r) => !oldContents.has(r.message))
-
-    if (newRecords.length === 0) return
-
-    // Remove the optimistic AI placeholder so we can replace it
-    const lastAiIdx = messages.value.length - 1
-    if (messages.value[lastAiIdx]?.sender === 'ai') {
-      messages.value.pop()
-    }
-
-    // Replace with fresh data in correct order
-    const sorted = newRecords.sort((a, b) => {
-      if (a.createTime && b.createTime) return a.createTime.localeCompare(b.createTime)
-      return 0
-    })
-
-    sorted.forEach((r) => {
-      messages.value.push({
-        uid: crypto.randomUUID(),
-        sender: r.messageType === 'user' ? 'user' : 'ai',
-        content: r.message || '',
-        avatarUrl: r.messageType === 'user' ? USER_AVATAR : AI_AVATAR,
-        renderState: 'history',
-      })
-    })
-
-    cursor.value = freshData.nextCursor
-    hasMore.value = freshData.hasMore ?? true
-    scrollToBottom()
-  } catch {
-    // Ignore refresh errors, messages still valid
-  }
-}
-
 // ---------- scroll (throttled via RAF cancel) ----------
 let scrollRafId = 0
 function scrollToBottom() {
