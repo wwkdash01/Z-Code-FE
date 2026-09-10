@@ -206,13 +206,13 @@ async function refreshHistory() {
   }
 }
 
-// ---------- scroll ----------
+// ---------- scroll (throttled via RAF cancel) ----------
+let scrollRafId = 0
 function scrollToBottom() {
-  requestAnimationFrame(() => {
+  cancelAnimationFrame(scrollRafId)
+  scrollRafId = requestAnimationFrame(() => {
     const container = document.querySelector('.chat-board-content')
-    if (container) {
-      container.scrollTop = container.scrollHeight
-    }
+    if (container) container.scrollTop = container.scrollHeight
   })
 }
 
