@@ -1,21 +1,15 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { ref } from 'vue'
 import defaultAvatar from '@/assets/anno.png'
-import { renderMarkdown } from '@/utils/markdown'
 
 const props = defineProps<{
   sender: 'user' | 'ai'
   content: string
   avatarUrl: string
   renderState?: 'history' | 'loading' | 'streaming' | 'done'
-  asMarkdown?: boolean
 }>()
 
 const avatarFailed = ref(false)
-
-// Markdown HTML — null means plain text display (safe during streaming)
-const html = computed(() => props.asMarkdown ? renderMarkdown(props.content) : null)
 </script>
 
 <template>
@@ -39,7 +33,7 @@ const html = computed(() => props.asMarkdown ? renderMarkdown(props.content) : n
         {{ content }}<span class="t-cursor">|</span>
       </div>
       <!-- AI done / history -->
-      <div v-else-if="sender === 'ai'" class="bb" :class="{ 'has-markdown': html }" v-html="html || content"></div>
+      <div v-else-if="sender === 'ai'" class="bb">{{ content }}</div>
       <!-- User message -->
       <div v-else class="bb">{{ content }}</div>
     </div>
@@ -137,24 +131,6 @@ const html = computed(() => props.asMarkdown ? renderMarkdown(props.content) : n
 
 .bb.bub-stream {
   max-width: 90%;
-}
-
-/* Markdown rendering: prevent children from breaking layout */
-.md-render {
-  max-width: 100%;
-}
-.md-render :deep(h1), .md-render :deep(h2), .md-render :deep(h3) {
-  margin: 0.5rem 0;
-}
-.md-render :deep(p) {
-  margin: 0.5rem 0;
-}
-.md-render :deep(ul), .md-render :deep(ol) {
-  margin: 0.5rem 0;
-  padding-left: 1.5rem;
-}
-.md-render :deep(pre) {
-  overflow-x: auto;
 }
 
 .t-cursor {
