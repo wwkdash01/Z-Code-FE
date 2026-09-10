@@ -100,8 +100,7 @@ const html = computed(() => props.asMarkdown ? renderMarkdown(props.content) : n
   overflow-wrap: break-word;
   word-break: break-word;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  display: inline-block;
-  max-width: 90%;
+  width: fit-content;
 }
 
 /* AI messages: gray, right-aligned */
