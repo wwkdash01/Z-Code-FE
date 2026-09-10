@@ -1,21 +1,15 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { ref } from 'vue'
 import defaultAvatar from '@/assets/anno.png'
-import { renderMarkdown } from '@/utils/markdown'
 
 const props = defineProps<{
   sender: 'user' | 'ai'
   content: string
   avatarUrl: string
   renderState?: 'history' | 'loading' | 'streaming' | 'done'
-  asMarkdown?: boolean
 }>()
 
 const avatarFailed = ref(false)
-
-// Markdown HTML — null means plain text display (safe for streaming)
-const html = computed(() => props.asMarkdown ? renderMarkdown(props.content) : null)
 </script>
 
 <template>
@@ -36,17 +30,10 @@ const html = computed(() => props.asMarkdown ? renderMarkdown(props.content) : n
       </div>
       <!-- AI streaming -->
       <div v-else-if="sender === 'ai' && renderState === 'streaming'" class="bb bub-stream">
-        <!-- Plain text during streaming (avoids unbalanced HTML) -->
-        <template v-if="html">{{ content }}<span class="t-cursor">|</span></template>
-        <!-- Markdown rendered when done or not requested -->
-        <span v-else-if="html" class="md-render" v-html="html"></span>
-        <span v-else>{{ content }}<span class="t-cursor">|</span></span>
+        {{ content }}<span class="t-cursor">|</span>
       </div>
       <!-- AI done / history -->
-      <div v-else-if="sender === 'ai'" class="bb">
-        <template v-if="html"><span class="md-render" v-html="html"></span></template>
-        <template v-else>{{ content }}</template>
-      </div>
+      <div v-else-if="sender === 'ai'" class="bb">{{ content }}</div>
       <!-- User message -->
       <div v-else class="bb">{{ content }}</div>
     </div>
