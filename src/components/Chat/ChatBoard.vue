@@ -62,7 +62,7 @@ onMounted(async () => {
 async function loadHistory() {
   try {
     const res = await queryChatHistoryByCursor({ appId: String(props.appId) })
-    if (!res?.data || res.data.code !== 200 || !res.data.data) {
+    if (!res?.data || Number(res.data.code) !== 200 || !res.data.data) {
       message.info('暂无聊天记录')
       return
     }
