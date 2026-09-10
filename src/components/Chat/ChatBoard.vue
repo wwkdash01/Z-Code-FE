@@ -8,6 +8,7 @@ import { queryChatHistoryByCursor } from '@/api/chatHistoryController'
 import MessageRow from './MessageRow.vue'
 import { fetchEventSource } from '@microsoft/fetch-event-source'
 import annoImg from '@/assets/anno.png'
+import { API_BASE } from '@/config/api'
 
 // ---------- types ----------
 interface ChatMessage {
@@ -120,7 +121,7 @@ async function sendMessage() {
   scrollToBottom()
 
   // 3. SSE streaming
-  const url = `http://localhost:58080/api/apps/user/code-stream?appId=${props.appId}&userPrompt=${encodeURIComponent(text)}`
+  const url = `${API_BASE}/apps/user/code-stream?appId=${props.appId}&userPrompt=${encodeURIComponent(text)}`
 
   try {
     await fetchEventSource(url, {
