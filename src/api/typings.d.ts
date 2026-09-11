@@ -52,6 +52,7 @@ declare namespace API {
     initPrompt?: string;
     codeGenType?: "singleton" | "multifile";
     appTag?: "tool" | "webPage" | "profile";
+    deployKey?: string;
     createTime?: string;
     userName?: string;
     userAvatar?: string;

@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { getMyAppByPage } from '@/api/appController'
+import { deployUrlOf } from '@/config/api'
 import dayjs from 'dayjs'
 import { useLoginUserStore } from '@/stores/loginUser'
 import { getImgDegradation } from '@/utils/getImgDegradation'
@@ -11,41 +13,24 @@ interface AppItem {
   appName?: string
   cover?: string
   createTime?: string
+  deployKey?: string
 }
 
-const props = defineProps<{
-  /** 一页显示数量，默认 20 */
-  pageSize?: number
-}>()
+/** 需求：每页最多 10 个 */
+const PAGE_SIZE = 10
 
+const router = useRouter()
 const loginUserStore = useLoginUserStore()
 
 const isLoggedIn = computed(
-  () => !!(loginUserStore.loginUser.id && loginUserStore.loginUser.userAccount)
+  () => !!(loginUserStore.loginUser.id && loginUserStore.loginUser.userAccount),
 )
 
 const appList = ref<AppItem[]>([])
 const loading = ref(false)
-const myAppCardRef = ref<HTMLElement | null>(null)
-const displayApps = ref<AppItem[]>([])
-
-const MIN_CARD_WIDTH = 266
-
-function updateDisplayApps() {
-  if (!myAppCardRef.value) return
-  const containerWidth = myAppCardRef.value.offsetWidth
-  const maxPerRow = Math.floor(containerWidth / MIN_CARD_WIDTH)
-  const count = Math.min(appList.value.length, Math.max(maxPerRow, 1))
-  displayApps.value = appList.value.slice(0, count)
-}
-
-let resizeTimer: ReturnType<typeof setTimeout> | null = null
-function handleResize() {
-  if (resizeTimer) clearTimeout(resizeTimer)
-  resizeTimer = setTimeout(() => {
-    updateDisplayApps()
-  }, 50)
-}
+const searchName = ref('')
+const currentPage = ref(1)
+const total = ref(0)
 
 async function fetchData() {
   // 确保已获取登录用户信息
@@ -56,40 +41,52 @@ async function fetchData() {
   loading.value = true
   try {
     const res = await getMyAppByPage({
-      pageNum: 1,
-      pageSize: props.pageSize ?? 20,
+      pageNum: currentPage.value,
+      pageSize: PAGE_SIZE,
+      appName: searchName.value || undefined,
     })
     if (res.data.code === 200 && res.data.data) {
-      const records = (res.data.data.records || []).map(app => ({
+      const records = (res.data.data.records || []).map((app) => ({
         ...app,
         cover: getImgDegradation(app.cover),
       }))
       // 运行时 id 已是 string（transformResponse 处理过），通过 unknown 桥接消除 TS 类型冲突
       appList.value = records as unknown as AppItem[]
-      updateDisplayApps()
+      total.value = Number(res.data.data.totalRow ?? 0)
     } else {
       message.warning(res.data.message || '获取应用列表失败')
     }
-  } catch (e) {
+  } catch {
     message.error('获取应用列表失败')
   } finally {
     loading.value = false
   }
 }
 
+function doSearch() {
+  currentPage.value = 1
+  fetchData()
+}
+
+function changePage(page: number) {
+  currentPage.value = page
+  fetchData()
+}
+
+function viewChat(app: AppItem) {
+  router.push({ path: '/app/app-edit', query: { id: app.id, view: '1' } })
+}
+
+function viewWork(app: AppItem) {
+  if (app.deployKey) window.open(deployUrlOf(app.deployKey))
+}
+
 onMounted(() => {
   fetchData()
-  updateDisplayApps()
-  window.addEventListener('resize', handleResize)
 })
 
 watch(isLoggedIn, (val) => {
   if (val) fetchData()
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize)
-  if (resizeTimer) clearTimeout(resizeTimer)
 })
 
 defineExpose({ reload: fetchData })
@@ -97,23 +94,23 @@ defineExpose({ reload: fetchData })
 
 <template>
   <section v-if="isLoggedIn" class="my-app-section">
-    <div class="my-app-card" ref="myAppCardRef">
+    <div class="my-app-card">
       <div class="my-app-header">
         <h2 class="my-app-title">我的应用</h2>
-        <a-button text @click="message.info('TODO: 更多应用页')">更多 ></a-button>
+        <a-input-search
+          v-model:value="searchName"
+          class="my-app-search"
+          placeholder="搜索应用名称"
+          allow-clear
+          enter-button
+          @search="doSearch"
+        />
       </div>
 
       <a-spin :spinning="loading">
         <div class="my-app-grid">
-          <div
-            v-for="app in displayApps"
-            :key="app.id"
-            class="my-app-item"
-          >
-            <div
-              class="my-app-item-inner"
-              @click="message.info('TODO: 应用详情/预览功能待实现')"
-            >
+          <div v-for="app in appList" :key="app.id" class="my-app-item">
+            <div class="my-app-item-inner">
               <div
                 class="my-app-cover"
                 :style="{ backgroundImage: app.cover ? `url(${app.cover})` : undefined }"
@@ -128,10 +125,27 @@ defineExpose({ reload: fetchData })
                   创建于 {{ dayjs(app.createTime).format('YYYY-MM-DD HH:mm') }}
                 </div>
               </div>
+              <div class="my-app-actions">
+                <a-button size="small" type="link" @click="viewChat(app)">查看对话</a-button>
+                <a-button v-if="app.deployKey" size="small" type="link" @click="viewWork(app)">
+                  查看作品
+                </a-button>
+              </div>
             </div>
           </div>
         </div>
+        <div v-if="!loading && !appList.length" class="my-app-empty">暂无应用</div>
       </a-spin>
+
+      <div v-if="total > 0" class="my-app-pagination">
+        <a-pagination
+          :current="currentPage"
+          :page-size="PAGE_SIZE"
+          :total="total"
+          :show-total="(t: number) => `共 ${t} 条`"
+          @change="changePage"
+        />
+      </div>
     </div>
   </section>
 </template>
@@ -155,6 +169,7 @@ defineExpose({ reload: fetchData })
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   margin-bottom: 20px;
 }
 
@@ -165,14 +180,14 @@ defineExpose({ reload: fetchData })
   margin: 0;
 }
 
+.my-app-search {
+  width: 240px;
+}
+
 .my-app-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 16px;
-}
-
-.my-app-item {
-  margin-bottom: 0;
 }
 
 .my-app-item-inner {
@@ -181,7 +196,8 @@ defineExpose({ reload: fetchData })
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   transition: box-shadow 0.2s;
-  cursor: pointer;
+  display: flex;
+  flex-direction: column;
 }
 
 .my-app-item-inner:hover {
@@ -213,7 +229,7 @@ defineExpose({ reload: fetchData })
 }
 
 .my-app-info {
-  padding: 12px 16px;
+  padding: 12px 16px 4px;
 }
 
 .my-app-name {
@@ -229,5 +245,23 @@ defineExpose({ reload: fetchData })
 .my-app-time {
   font-size: 12px;
   color: rgba(0, 0, 0, 0.45);
+}
+
+.my-app-actions {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px 8px;
+}
+
+.my-app-empty {
+  text-align: center;
+  color: rgba(0, 0, 0, 0.35);
+  padding: 32px 0;
+}
+
+.my-app-pagination {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

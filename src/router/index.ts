@@ -1,4 +1,5 @@
 import UserManagePage from '@/pages/admin/UserManagePage.vue'
+import AppManagePage from '@/pages/admin/AppManagePage.vue'
 import UserLoginPage from '@/pages/user/UserLoginPage.vue'
 import UserRegisterPage from '@/pages/user/UserRegisterPage.vue'
 import TestPage from '@/pages/test/TestPage.vue'
@@ -26,6 +27,11 @@ const router = createRouter({
       component: UserManagePage
     },
     {
+      path: '/admin/app-manager',
+      name: '应用管理',
+      component: AppManagePage
+    },
+    {
       path: '/user/login',
       name: '用户登录',
       component: UserLoginPage
@@ -39,6 +45,11 @@ const router = createRouter({
       path: '/app/app-edit',
       name: '应用编辑',
       component: () => import('../pages/app/AppEditPage.vue'),
+    },
+    {
+      path: '/app/app-info',
+      name: '应用信息修改',
+      component: () => import('../pages/app/AppInfoEditPage.vue'),
     },
     {
       path: '/test',

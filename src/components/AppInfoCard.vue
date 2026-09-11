@@ -111,8 +111,8 @@ onMounted(async () => {
 
 <style scoped>
 .app-info-card {
-    padding-left: 10%;
-    padding-right: 10%;
+    padding-left: 23%;
+    padding-right: 23%;
     /* background-color: antiquewhite; */
     height: 100%;
     width: 100%;

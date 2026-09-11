@@ -2,6 +2,7 @@
  * 通用 SSE 流式请求工具
  * 复用 @composables/useSSE 的解析逻辑，参数化写入目标（onData 回调）
  */
+import { ref } from 'vue'
 import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { redirect2Login } from '@/utils/auth'
 import { useLoginUserStore } from '@/stores/loginUser'

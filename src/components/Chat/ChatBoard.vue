@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import { useLoginUserStore } from '@/stores/loginUser'
 import { message } from 'ant-design-vue'
 import { Button as AButton } from 'ant-design-vue'
@@ -20,10 +20,19 @@ interface ChatMessage {
 }
 
 // ---------- props & state ----------
-const props = defineProps<{ appId: string }>()
+const props = defineProps<{
+  appId: string
+  /** 历史为空时自动作为第一条消息发送（创建应用流） */
+  initialPrompt?: string
+  /** 只读模式：禁用输入区（查看他人作品） */
+  disabled?: boolean
+  disabledTip?: string
+}>()
+
+const emit = defineEmits<{ streamComplete: [] }>()
 
 const loginUserStore = useLoginUserStore()
-const USER_AVATAR = loginUserStore.loginUser.value?.userAvatar || annoImg
+const USER_AVATAR = computed(() => loginUserStore.loginUser.userAvatar || annoImg)
 const AI_AVATAR = annoImg
 
 const messages = ref<ChatMessage[]>([])
@@ -33,7 +42,9 @@ const hasMore = ref(true)
 const cursor = ref<string | undefined>(undefined)
 
 // ---------- helpers ----------
-async function fetchMessages<T>(params: Record<string, any>): Promise<T | null> {
+async function fetchMessages(
+  params: API.queryChatHistoryByCursorParams,
+): Promise<API.ChatHistoryUserCursorPageVO | null> {
   const res = await queryChatHistoryByCursor(params)
   if (Number(res.data.code) !== 200 || !res.data.data) {
     return null
@@ -48,7 +59,7 @@ function appendRecords(records: API.ChatHistoryVO[]) {
       uid: crypto.randomUUID(),
       sender: r.messageType === 'user' ? 'user' : 'ai',
       content: r.message || '',
-      avatarUrl: r.messageType === 'user' ? USER_AVATAR : AI_AVATAR,
+      avatarUrl: r.messageType === 'user' ? USER_AVATAR.value : AI_AVATAR,
       renderState: 'history',
     })
   })
@@ -56,30 +67,35 @@ function appendRecords(records: API.ChatHistoryVO[]) {
 }
 
 onMounted(async () => {
-  await loadHistory()
+  const historyCount = await loadHistory()
+  // 创建应用流：历史为空时自动发送初始提示词
+  if (historyCount === 0 && props.initialPrompt && !props.disabled) {
+    sendMessage(props.initialPrompt)
+  }
 })
 
-async function loadHistory() {
+async function loadHistory(): Promise<number> {
   try {
-    const data = await fetchMessages<API.ChatHistoryUserCursorPageVO>({
+    const data = await fetchMessages({
       appId: props.appId,
     })
     if (!data || !data.records?.length) {
-      message.info('暂无聊天记录')
-      return
+      return 0
     }
     appendRecords(data.records)
     cursor.value = data.nextCursor
     hasMore.value = data.hasMore ?? true
+    return data.records.length
   } catch {
     message.error('加载历史消息失败')
+    return 0
   }
 }
 
 async function loadMore() {
   if (!hasMore.value || !cursor.value || isGenerating.value) return
   try {
-    const data = await fetchMessages<API.ChatHistoryUserCursorPageVO>({
+    const data = await fetchMessages({
       appId: props.appId,
       cursor: cursor.value,
     })
@@ -93,16 +109,16 @@ async function loadMore() {
 }
 
 // ---------- send message (SSE) ----------
-async function sendMessage() {
-  const text = userInput.value.trim()
-  if (!text || isGenerating.value) return
+async function sendMessage(textArg?: string) {
+  const text = (textArg ?? userInput.value).trim()
+  if (!text || isGenerating.value || props.disabled) return
 
   // 1. Optimistically show user message
   messages.value.push({
     uid: crypto.randomUUID(),
     sender: 'user',
     content: text,
-    avatarUrl: USER_AVATAR,
+    avatarUrl: USER_AVATAR.value,
     renderState: 'done',
   })
 
@@ -122,7 +138,7 @@ async function sendMessage() {
 
   // 3. SSE streaming via composable
   const url = `${API_BASE}/apps/user/code-stream?appId=${props.appId}&userPrompt=${encodeURIComponent(text)}`
-  let streamingFlag = ref(false)
+  const streamingFlag = ref(false)
 
   isGenerating.value = true
   streamingFlag.value = false
@@ -137,6 +153,7 @@ async function sendMessage() {
     onComplete: () => {
       isGenerating.value = false
       aiMsg.renderState = 'done'
+      emit('streamComplete')
     },
     onError: (err) => {
       console.error('[ChatBoard] SSE error:', err)
@@ -193,20 +210,24 @@ function scrollToBottom() {
 
     <!-- Bottom: User Input -->
     <div class="user-prompt-area">
-      <ATextarea
-        v-model:value="userInput"
-        placeholder="请输入消息..."
-        :auto-size="{ minRows: 1, maxRows: 6 }"
-        :disabled="isGenerating"
-        @keydown.enter.exact.prevent="sendMessage"
-      />
-      <AButton
-        type="primary"
-        :disabled="!userInput.trim() || isGenerating"
-        @click="sendMessage"
-      >
-        发送
-      </AButton>
+      <a-tooltip :title="disabled ? disabledTip || '' : ''">
+        <div class="user-prompt-row">
+          <ATextarea
+            v-model:value="userInput"
+            placeholder="请输入消息..."
+            :auto-size="{ minRows: 1, maxRows: 6 }"
+            :disabled="disabled || isGenerating"
+            @keydown.enter.exact.prevent="sendMessage()"
+          />
+          <AButton
+            type="primary"
+            :disabled="disabled || !userInput.trim() || isGenerating"
+            @click="sendMessage()"
+          >
+            发送
+          </AButton>
+        </div>
+      </a-tooltip>
     </div>
   </div>
 </template>
@@ -242,12 +263,15 @@ function scrollToBottom() {
 .user-prompt-area {
   padding: 12px 16px;
   border-top: 1px solid #f0f0f0;
+}
+
+.user-prompt-row {
   display: flex;
-  flex-direction: column-reverse;
+  align-items: flex-end;
   gap: 8px;
 }
 
-.user-prompt-area textarea {
+.user-prompt-row textarea {
   resize: none;
 }
 </style>

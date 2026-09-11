@@ -17,7 +17,7 @@ const avatarFailed = ref(false)
 // Only supports: bold (**), italic (*), inline code (`), links [text](url)
 const renderedParts = computed(() => {
   if (!props.asMarkdown || !props.content) return [{ type: 'text', value: props.content }]
-  const parts: Array<{ type: string; value: string }> = []
+  const parts: Array<{ type: string; value: string; href?: string }> = []
   // Regex-based tokenizer for inline markdown
   const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[.*?\]\(.*?\))/g
   let lastIndex = 0
@@ -49,8 +49,8 @@ const renderedParts = computed(() => {
 
 <template>
   <div class="msg-row" :class="'sender-' + sender">
-    <!-- Left avatar -->
-    <div v-if="sender === 'user'" class="av-left">
+    <!-- Left avatar (AI) -->
+    <div v-if="sender === 'ai'" class="av-left">
       <img :src="avatarFailed || !avatarUrl ? defaultAvatar : avatarUrl" />
     </div>
     <div v-else class="sp"></div>
@@ -81,8 +81,8 @@ const renderedParts = computed(() => {
       <div v-else class="bb">{{ content }}</div>
     </div>
 
-    <!-- Right avatar -->
-    <div v-if="sender === 'ai'" class="av-right">
+    <!-- Right avatar (user) -->
+    <div v-if="sender === 'user'" class="av-right">
       <img :src="avatarFailed || !avatarUrl ? defaultAvatar : avatarUrl" />
     </div>
     <div v-else class="sp"></div>
@@ -120,18 +120,18 @@ const renderedParts = computed(() => {
 }
 
 .bub-wrap.user {
-  justify-content: flex-start;
+  justify-content: flex-end;
 }
 
 .bub-wrap.ai {
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 /* ===== the bubble itself: shrink-to-fit, max 90% of middle col ===== */
 .bb {
   padding: 8px 10px 10px;
   border-radius: 12px;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: break-word;
@@ -140,7 +140,7 @@ const renderedParts = computed(() => {
   width: fit-content;
 }
 
-/* AI messages: gray, right-aligned */
+/* AI messages: gray, left-aligned */
 .sender-ai .bb {
   background-color: #f0f0f0;
   color: rgba(0, 0, 0, 0.88);
@@ -195,7 +195,7 @@ const renderedParts = computed(() => {
   51%, 100% { opacity: 0; }
 }
 
-/* User messages: teal, left-aligned */
+/* User messages: teal, right-aligned */
 .sender-user .bb {
   background-color: #00b894;
   color: #fff;
