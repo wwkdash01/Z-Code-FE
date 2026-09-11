@@ -45,6 +45,7 @@ const router = createRouter({
       path: '/app/app-edit',
       name: '应用编辑',
       component: () => import('../pages/app/AppEditPage.vue'),
+      meta: { blank: true },
     },
     {
       path: '/app/app-info',

@@ -3,11 +3,12 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
-  ReloadOutlined,
-  ExportOutlined,
   CopyOutlined,
   CloudUploadOutlined,
   DownOutlined,
+  DesktopOutlined,
+  CodeOutlined,
+  VerticalAlignBottomOutlined,
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import {
@@ -34,6 +35,8 @@ const app = ref<PreservedAppVO | null>(null)
 const previewUrl = ref('')
 const iframeKey = ref(0)
 const deploying = ref(false)
+// 预览区模式：desktop=iframe 渲染，code=占位
+const previewMode = ref<'desktop' | 'code'>('code')
 
 // ========== 权限 / 模式 ==========
 const isViewMode = computed(() => route.query.view === '1')
@@ -177,14 +180,6 @@ async function loadPreview(silent = false) {
   }
 }
 
-function reloadPreview() {
-  iframeKey.value++
-}
-
-function openPreview() {
-  if (previewUrl.value) window.open(previewUrl.value)
-}
-
 // ========== 部署 ==========
 const deployUrl = ref('')
 const deployModalOpen = ref(false)
@@ -229,95 +224,123 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="chat-page">
-    <!-- ========== 核心内容区 ========== -->
-    <div class="chat-body">
-      <!-- 左侧：应用信息 + 对话区域 -->
-      <aside class="chat-left">
-        <div class="app-info-card">
-          <a-avatar :size="40" :src="appCover" />
-          <div class="app-info-main">
-            <span class="app-info-name">{{ app?.appName || '未命名应用' }}</span>
-            <span class="app-info-time">
-              创建于 {{ app?.createTime ? dayjs(app.createTime).format('YYYY-MM-DD') : '-' }}
-            </span>
-          </div>
-          <a-popover
-            v-if="canEdit"
-            trigger="click"
-            placement="bottomRight"
-            :arrow="false"
-          >
-            <template #content>
-              <div class="app-edit-pop">
-                <div class="pop-row">
-                  <label class="edit-label">ID</label>
-                  <span class="pop-value">{{ app?.id || '-' }}</span>
-                </div>
-                <div class="pop-row">
-                  <label class="edit-label">应用名称</label>
-                  <a-input
-                    class="pop-input"
-                    :bordered="false"
-                    v-model:value="editForm.appName"
-                    @blur="handleAppNameBlur"
-                  />
-                </div>
-                <div class="pop-row">
-                  <label class="edit-label">封面</label>
-                  <a-input
-                    v-if="isAdmin"
-                    class="pop-input"
-                    :bordered="false"
-                    v-model:value="editForm.cover"
-                    @blur="saveAdminChanges"
-                  />
-                  <span v-else class="pop-value">{{ app?.cover || '无' }}</span>
-                </div>
-                <div v-if="isAdmin" class="pop-row">
-                  <label class="edit-label">优先级</label>
-                  <a-input-number
-                    class="pop-input"
-                    :bordered="false"
-                    :min="0"
-                    :max="99"
-                    v-model:value="editForm.priority"
-                    @blur="saveAdminChanges"
-                  />
-                </div>
-                <div class="pop-row">
-                  <label class="edit-label">生成类型</label>
-                  <span class="pop-value">{{ app?.codeGenType || '-' }}</span>
-                </div>
-                <div class="pop-row">
-                  <label class="edit-label">应用标签</label>
-                  <span class="pop-value">{{ app?.appTag || '-' }}</span>
-                </div>
-                <div class="pop-row">
-                  <label class="edit-label">部署Key</label>
-                  <span class="pop-value">{{ app?.deployKey || '未部署' }}</span>
-                </div>
-                <div class="pop-row">
-                  <label class="edit-label">创建时间</label>
-                  <span class="pop-value">
-                    {{ app?.createTime ? dayjs(app.createTime).format('YYYY-MM-DD HH:mm') : '-' }}
-                  </span>
-                </div>
-                <div class="pop-row">
-                  <label class="edit-label">创建者</label>
-                  <span class="pop-value">{{ app?.userName || '-' }}</span>
-                </div>
-                <div class="pop-block">
-                  <label class="edit-label">初始提示词</label>
-                  <div class="pop-prompt">{{ app?.initPrompt || '-' }}</div>
-                </div>
-              </div>
-            </template>
-            <a-button type="text" size="small">
-              <template #icon><DownOutlined /></template>
-            </a-button>
-          </a-popover>
+  <div class="app-edit-page">
+    <!-- ========== 页面 header：应用信息 + 预览模式 + 操作 ========== -->
+    <header class="app-header">
+      <div class="header-left">
+        <a-avatar :size="40" :src="appCover" />
+        <div class="app-info-main">
+          <span class="app-info-name">{{ app?.appName || '未命名应用' }}</span>
+          <span class="app-info-time">
+            创建于 {{ app?.createTime ? dayjs(app.createTime).format('YYYY-MM-DD') : '-' }}
+          </span>
         </div>
+        <a-popover
+          v-if="canEdit"
+          trigger="click"
+          placement="bottomRight"
+          :arrow="false"
+        >
+          <template #content>
+            <div class="app-edit-pop">
+              <div class="pop-row">
+                <label class="edit-label">ID</label>
+                <span class="pop-value">{{ app?.id || '-' }}</span>
+              </div>
+              <div class="pop-row">
+                <label class="edit-label">应用名称</label>
+                <a-input
+                  class="pop-input"
+                  :bordered="false"
+                  v-model:value="editForm.appName"
+                  @blur="handleAppNameBlur"
+                />
+              </div>
+              <div class="pop-row">
+                <label class="edit-label">封面</label>
+                <a-input
+                  v-if="isAdmin"
+                  class="pop-input"
+                  :bordered="false"
+                  v-model:value="editForm.cover"
+                  @blur="saveAdminChanges"
+                />
+                <span v-else class="pop-value">{{ app?.cover || '无' }}</span>
+              </div>
+              <div v-if="isAdmin" class="pop-row">
+                <label class="edit-label">优先级</label>
+                <a-input-number
+                  class="pop-input"
+                  :bordered="false"
+                  :min="0"
+                  :max="99"
+                  v-model:value="editForm.priority"
+                  @blur="saveAdminChanges"
+                />
+              </div>
+              <div class="pop-row">
+                <label class="edit-label">生成类型</label>
+                <span class="pop-value">{{ app?.codeGenType || '-' }}</span>
+              </div>
+              <div class="pop-row">
+                <label class="edit-label">应用标签</label>
+                <span class="pop-value">{{ app?.appTag || '-' }}</span>
+              </div>
+              <div class="pop-row">
+                <label class="edit-label">部署Key</label>
+                <span class="pop-value">{{ app?.deployKey || '未部署' }}</span>
+              </div>
+              <div class="pop-row">
+                <label class="edit-label">创建时间</label>
+                <span class="pop-value">
+                  {{ app?.createTime ? dayjs(app.createTime).format('YYYY-MM-DD HH:mm') : '-' }}
+                </span>
+              </div>
+              <div class="pop-row">
+                <label class="edit-label">创建者</label>
+                <span class="pop-value">{{ app?.userName || '-' }}</span>
+              </div>
+              <div class="pop-block">
+                <label class="edit-label">初始提示词</label>
+                <div class="pop-prompt">{{ app?.initPrompt || '-' }}</div>
+              </div>
+            </div>
+          </template>
+          <a-button type="text" size="small">
+            <template #icon><DownOutlined /></template>
+          </a-button>
+        </a-popover>
+      </div>
+
+      <div class="header-right">
+        <a-radio-group v-model:value="previewMode" size="small">
+          <a-radio-button value="desktop">
+            <DesktopOutlined />
+          </a-radio-button>
+          <a-radio-button value="code">
+            <CodeOutlined />
+          </a-radio-button>
+        </a-radio-group>
+        <div class="header-actions">
+          <a-button size="small">
+            <template #icon><VerticalAlignBottomOutlined /></template>
+          </a-button>
+          <a-button
+            type="primary"
+            :loading="deploying"
+            :disabled="!isOwner"
+            @click="handleDeploy"
+          >
+            <template #icon><CloudUploadOutlined /></template>
+            部署
+          </a-button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ========== 核心内容区：对话 + 预览 ========== -->
+    <div class="chat-body">
+      <aside class="chat-left">
         <div class="chat-board-card">
           <ChatBoard
             v-if="appId"
@@ -330,34 +353,21 @@ onMounted(async () => {
         </div>
       </aside>
 
-      <!-- 右侧：网页展示区域 -->
       <main class="chat-right">
-        <div class="preview-toolbar">
-          <a-button size="small" :disabled="!previewUrl" @click="reloadPreview">
-            <template #icon><ReloadOutlined /></template>
-          </a-button>
-          <a-input
-            class="preview-url-input"
-            size="small"
-            read-only
-            :value="previewUrl || '预览区：网站生成完成后自动展示'"
-          />
-          <a-button size="small" :disabled="!previewUrl" @click="openPreview">
-            <template #icon><ExportOutlined /></template>
-          </a-button>
-          <a-button
-            type="primary"
-            :loading="deploying"
-            :disabled="!isOwner"
-            @click="handleDeploy"
-          >
-            <template #icon><CloudUploadOutlined /></template>
-            部署
-          </a-button>
-        </div>
         <div class="preview-body">
-          <iframe v-if="previewUrl" :key="iframeKey" :src="previewUrl" class="preview-iframe" />
-          <div v-else class="preview-placeholder">AI 回复结束后，生成的网站将自动展示在这里</div>
+          <iframe
+            v-if="previewMode === 'desktop' && previewUrl"
+            :key="iframeKey"
+            :src="previewUrl"
+            class="preview-iframe"
+          />
+          <div v-else class="preview-placeholder">
+            {{
+              previewMode === 'desktop'
+                ? 'AI 回复结束后，生成的网站将自动展示在这里'
+                : '代码视图占位'
+            }}
+          </div>
         </div>
       </main>
     </div>
@@ -378,41 +388,60 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.chat-page {
+.app-edit-page {
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  height: calc(100vh - 56px - 70px - 48px);
-  min-height: 560px;
 }
 
-/* ========== 核心内容区 ========== */
-.chat-body {
-  flex: 1;
-  display: flex;
-  gap: 16px;
-  min-height: 0;
-}
-
-/* 左右面板占比 1:4 */
-.chat-left {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
-  min-height: 0;
-}
-
-.app-info-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 12px 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+/* ========== 页面 header：与内容区共用 1:3 网格，保证 radio-group 与预览区左对齐 ========== */
+.app-header {
+  height: 60px;
   flex-shrink: 0;
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  gap: 16px;
+  align-items: center;
+  padding: 0 16px;
+  background: #fff;
+}
+
+.header-left {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  padding: 0 10%;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ========== 核心内容区：对话 : 预览 = 1:3 ========== */
+.chat-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  gap: 16px;
+  padding: 0 16px 16px;
+  min-height: 0;
+}
+
+.chat-left {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
 }
 
 .app-info-main {
@@ -490,43 +519,24 @@ onMounted(async () => {
 
 .chat-board-card {
   flex: 1;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  background: transparent;
   overflow: hidden;
   min-height: 0;
 }
 
 /* ========== 右侧预览 ========== */
 .chat-right {
-  flex: 4;
   display: flex;
   flex-direction: column;
-  gap: 12px;
   min-width: 0;
   min-height: 0;
-}
-
-.preview-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 8px 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  flex-shrink: 0;
-}
-
-.preview-url-input {
-  flex: 1;
 }
 
 .preview-body {
   flex: 1;
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #d9d9d9;
   overflow: hidden;
   position: relative;
   min-height: 0;
@@ -561,15 +571,22 @@ onMounted(async () => {
 
 /* ========== 响应式 ========== */
 @media (max-width: 900px) {
+  .app-header {
+    grid-template-columns: 1fr;
+    height: auto;
+    row-gap: 8px;
+    padding: 8px 16px;
+  }
+
   .chat-body {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .chat-left {
     min-height: 400px;
   }
 
-  .chat-page {
+  .app-edit-page {
     height: auto;
   }
 }
