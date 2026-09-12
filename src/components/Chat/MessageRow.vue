@@ -5,7 +5,6 @@ import defaultAvatar from '@/assets/anno.png'
 import { CheckCircleOutlined, EditOutlined } from '@ant-design/icons-vue'
 
 const props = defineProps<{
-  uid: string
   sender: 'user' | 'ai'
   content: string
   avatarUrl: string
@@ -81,7 +80,6 @@ interface Block {
 }
 
 interface ParseState {
-  uid: string
   blocks: Block[]
   /** 已冻结到 content 的下标，恒为行首 */
   scanned: number
@@ -91,22 +89,18 @@ interface ParseState {
   sample: string
 }
 
-function newState(uid: string): ParseState {
-  return { uid, blocks: [], scanned: 0, inCode: false, len: 0, sample: '' }
+function newState(): ParseState {
+  return { blocks: [], scanned: 0, inCode: false, len: 0, sample: '' }
 }
 
-let state: ParseState = newState('')
+let state: ParseState = newState()
 
 function buildBlocks(content: string, isStreaming: boolean): Block[] {
-  // uid 变了说明组件实例被复用给了另一条消息（v-for 用 index 作 key，头插历史时会错位）
   const len = content.length
   const from = Math.max(0, state.len - SAMPLE)
-  if (
-    state.uid !== props.uid ||
-    len < state.len ||
-    content.slice(from, state.len) !== state.sample
-  ) {
-    state = newState(props.uid)
+  // 内容被整体替换（如 onError 写入错误文案）时丢弃缓存重建
+  if (len < state.len || content.slice(from, state.len) !== state.sample) {
+    state = newState()
   }
 
   // 只吃完整行。slice 以 \n 收尾，split 后最后一项是空串
@@ -159,10 +153,23 @@ function buildBlocks(content: string, isStreaming: boolean): Block[] {
   return out
 }
 
-const isStreaming = computed(() => props.renderState === 'streaming')
+type Mode = 'user' | 'ai-pending' | 'ai-streaming' | 'ai-static'
+
+/** 渲染分派的唯一来源 */
+const mode = computed<Mode>(() => {
+  if (props.sender !== 'ai') return 'user'
+  if (props.renderState === 'loading') return 'ai-pending'
+  if (props.renderState === 'streaming') return 'ai-streaming'
+  return 'ai-static'
+})
+
+const isStreaming = computed(() => mode.value === 'ai-streaming')
+
+/** AI 回复要等流式结束才显示时间戳；用户消息和历史消息立即显示 */
+const showTime = computed(() => mode.value === 'user' || mode.value === 'ai-static')
 
 const blocks = computed<Block[]>(() => {
-  if (props.sender !== 'ai') return []
+  if (mode.value === 'user') return []
   return buildBlocks(props.content, isStreaming.value).map((b) =>
     b.kind === 'code' ? b : { ...b, parts: isStreaming.value ? [] : tokenizeInline(b.value) },
   )
@@ -186,13 +193,13 @@ const showCursor = computed(() => {
     <!-- Bubble + time -->
     <div class="msg-main" :class="sender">
       <!-- AI loading: dots -->
-      <div v-if="sender === 'ai' && renderState === 'loading'" class="bb bub-loading">
+      <div v-if="mode === 'ai-pending'" class="bb bub-loading">
         <span class="di-dot"></span>
         <span class="di-dot"></span>
         <span class="di-dot"></span>
       </div>
       <!-- AI streaming / done / history：围栏切成块，代码块只显示状态行 -->
-      <div v-else-if="sender === 'ai'" class="bb">
+      <div v-else-if="mode !== 'user'" class="bb">
         <template v-for="(blk, idx) in blocks" :key="idx">
           <span v-if="blk.kind === 'code'" class="code-status">
             <template v-if="isStreaming && !blk.closed">
@@ -222,7 +229,7 @@ const showCursor = computed(() => {
       <!-- User message -->
       <div v-else class="bb">{{ content }}</div>
 
-      <div class="msg-time">{{ timeText }}</div>
+      <div v-if="showTime" class="msg-time">{{ timeText }}</div>
     </div>
   </div>
 </template>
@@ -313,6 +320,11 @@ const showCursor = computed(() => {
 
 .code-status :deep(.code-status-done) {
   color: #00b894;
+}
+
+/* a-spin 的圆点默认用 antd 主色（蓝），改成与用户气泡同色的绿 */
+.code-status :deep(.ant-spin-dot-item) {
+  background-color: #00b894;
 }
 
 .di-dot {
