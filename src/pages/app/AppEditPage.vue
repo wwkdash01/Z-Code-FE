@@ -314,6 +314,19 @@ onMounted(async () => {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  /* 左列轨道宽度：取整到整像素。小数宽度会一路继承下去，图标的水平位置就落在小数 CSS
+     像素上，而父层绘制与独立合成层两条光栅化路径对小数取整的方式不同 → 静止态横向偏 1px。
+     下游间距/尺寸本来就是整数，左列右边缘一取整，整条链就闭合。
+     表达式里的 16px 就是两条网格的 gap；不支持 round() 时保持 1fr，即原来的 1fr:3fr */
+  --col-left: 1fr;
+}
+
+/* 能力探测只用长度：混用百分比与长度（如 round(down, 100%, 1px)）可能被引擎在解析
+   阶段判无效，导致门控恒为 false —— 这个探测不参与任何布局，纯粹回答「有没有 round()」 */
+@supports (width: round(down, 10px, 1px)) {
+  .app-edit-page {
+    --col-left: round(down, (100% - 16px) / 4, 1px);
+  }
 }
 
 /* ========== 页面 header：与内容区共用 1:3 网格，保证 radio-group 与预览区左对齐 ========== */
@@ -321,7 +334,7 @@ onMounted(async () => {
   height: 60px;
   flex-shrink: 0;
   display: grid;
-  grid-template-columns: 1fr 3fr;
+  grid-template-columns: var(--col-left) 3fr;
   gap: 16px;
   align-items: center;
   padding: 0 16px;
@@ -353,7 +366,7 @@ onMounted(async () => {
 .chat-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 3fr;
+  grid-template-columns: var(--col-left) 3fr;
   gap: 16px;
   padding: 0 16px 16px;
   min-height: 0;
