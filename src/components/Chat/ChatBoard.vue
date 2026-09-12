@@ -15,7 +15,7 @@ import {
   AimOutlined,
   EditOutlined,
   QuestionOutlined,
-  ArrowUpOutlined,
+  CaretUpOutlined,
 } from '@ant-design/icons-vue'
 
 // ---------- types ----------
@@ -86,7 +86,16 @@ function endPop(e: AnimationEvent) {
   poppingIdx.value = -1
 }
 
-/** 同理忽略子元素（如 a-spin）冒泡的 animationend，否则渐显标记会被提前清掉 */
+/** 发送键箭头动画：仅用户主动提交时置 true，初始化自动发送不播 */
+const sendingAnim = ref(false)
+
+function endSendFly(e: AnimationEvent) {
+  // 同 endPop：动画跑在图标（子元素）上，且 scoped 会给 keyframes 名加作用域后缀，故前缀匹配
+  if (!e.animationName.startsWith('send-fly')) return
+  sendingAnim.value = false
+}
+
+/** 只认本行自己的渐显动画：子元素冒泡上来的 animationend 会提前清掉标记 */
 function handleRowAnimationEnd(e: AnimationEvent, msg: ChatMessage) {
   if (e.target !== e.currentTarget) return
   msg.entering = false
@@ -128,7 +137,7 @@ onMounted(async () => {
   const historyCount = await loadHistory()
   // 创建应用流：历史为空时自动发送初始提示词
   if (historyCount === 0 && props.initialPrompt && !props.disabled) {
-    sendMessage(props.initialPrompt)
+    sendMessage(props.initialPrompt, { animate: false })
   }
 })
 
@@ -178,7 +187,7 @@ async function loadMore() {
 }
 
 // ---------- send message (SSE) ----------
-async function sendMessage(textArg?: string) {
+async function sendMessage(textArg?: string, opts: { animate: boolean } = { animate: true }) {
   const text = (textArg ?? userInput.value).trim()
   if (!text || isGenerating.value || props.disabled) return
 
@@ -207,6 +216,7 @@ async function sendMessage(textArg?: string) {
 
   userInput.value = ''
   isGenerating.value = true
+  sendingAnim.value = opts.animate
   applyViewport('bottom')
 
   // 3. SSE streaming via composable
@@ -376,11 +386,13 @@ function applyViewport(
                 'is-edit': chatMode === 'edit',
                 'is-chat': chatMode === 'chat',
                 'is-idle': !hasInput,
+                'sending': sendingAnim,
               }"
               :disabled="sendDisabled"
               @click="sendMessage()"
+              @animationend="endSendFly"
             >
-              <ArrowUpOutlined />
+              <CaretUpOutlined />
             </button>
           </div>
         </div>
@@ -420,7 +432,7 @@ function applyViewport(
   opacity: 0.5;
   color: rgba(0, 0, 0, 0.45);
   cursor: pointer;
-  transition: color 0.2s, opacity 0.2s;
+  transition: color 0.4s, opacity 0.4s;
 }
 
 /* max-width 控制单侧横线长度：横线不再撑满容器 */
@@ -442,6 +454,7 @@ function applyViewport(
   transform-origin: left center;
 }
 
+/* 点击：横线先收缩再展开，恰好占满反馈下限，随后由呼吸接管 */
 .load-more-divider.is-loading::before,
 .load-more-divider.is-loading::after {
   animation: lm-retract var(--feedback-ms, 400ms) ease;
@@ -459,7 +472,7 @@ function applyViewport(
   }
 }
 
-/* 手势播完仍未返回时整体呼吸，盖住等待尾巴；请求更慢也不会解锁按钮 */
+/* 收缩播完仍未返回时整体呼吸，盖住等待尾巴；请求更慢也不会解锁按钮 */
 .load-more-divider.is-loading {
   animation: lm-breath 1.1s ease-in-out var(--feedback-ms, 400ms) infinite;
 }
@@ -660,6 +673,8 @@ function applyViewport(
 
 /* 圆形发送按钮：底色 = 模式色 × 有无文本 */
 .send-btn {
+  /* 悬停时箭头抬起的高度，同时是 send-fly 的起始帧：两处共用一个值，衔接处恒等 */
+  --fly-lift: -22%;
   width: 28px;
   height: 28px;
   flex-shrink: 0;
@@ -673,6 +688,37 @@ function applyViewport(
   font-size: 14px;
   cursor: pointer;
   transition: background 0.2s;
+  /* 裁出圆形：箭头「飞出」靠它，越出圆心的部分才不可见 */
+  overflow: hidden;
+}
+
+/* 悬停：箭头抬起「准备起飞」并停住。用 transition 而非 animation：可中断、可逆，
+   指针移开时从当前值平滑落回 */
+.send-btn :deep(.anticon) {
+  /* 常驻合成层：让静止态与动画态走同一条光栅化路径。否则过渡一结束层被回收，
+     图标回到父层按小数坐标重新取整，会横向跳 1px */
+  will-change: transform;
+  transition: transform 0.2s ease-out;
+}
+
+/* :not(:disabled) 是必需的：发送期间按钮 disabled，悬停整体失效，
+   飞行动画结束后图标才不会被悬停值再拽起来 */
+.send-btn:not(:disabled):hover :deep(.anticon) {
+  transform: translateY(var(--fly-lift));
+}
+
+/* 用户主动提交：箭头从抬起处向上飞出圆形，再从下方升回圆心 */
+.send-btn.sending :deep(.anticon) {
+  animation: send-fly 0.9s ease-in-out;
+}
+
+/* 0% 接住悬停终态；100% 回 0（发送后按钮 disabled，静止值就是 0）。
+   40% / 40.01% 两帧几乎重合，插值跨度≈0，否则箭头会从圆形中间扫过去 */
+@keyframes send-fly {
+  0% { transform: translateY(var(--fly-lift)); }
+  40% { transform: translateY(-170%); }
+  40.01% { transform: translateY(170%); }
+  100% { transform: translateY(0); }
 }
 
 .send-btn.is-edit {

@@ -175,7 +175,7 @@ const blocks = computed<Block[]>(() => {
   )
 })
 
-/** 代码块未闭合时已经有 spinner，不再叠一个文本光标 */
+/** 代码块未闭合时已经有「编辑中」的图标动画，不再叠一个文本光标 */
 const showCursor = computed(() => {
   if (!isStreaming.value) return false
   const last = blocks.value[blocks.value.length - 1]
@@ -203,9 +203,8 @@ const showCursor = computed(() => {
         <template v-for="(blk, idx) in blocks" :key="idx">
           <span v-if="blk.kind === 'code'" class="code-status">
             <template v-if="isStreaming && !blk.closed">
-              <EditOutlined />
+              <EditOutlined class="code-status-editing" />
               <span>正在编辑代码</span>
-              <a-spin size="small" />
             </template>
             <template v-else>
               <CheckCircleOutlined class="code-status-done" />
@@ -322,9 +321,23 @@ const showCursor = computed(() => {
   color: #00b894;
 }
 
-/* a-spin 的圆点默认用 antd 主色（蓝），改成与用户气泡同色的绿 */
-.code-status :deep(.ant-spin-dot-item) {
-  background-color: #00b894;
+/* 编辑中：先绿/原色闪烁，再左右摇晃。color 经 currentColor 驱动 svg fill */
+.code-status :deep(.code-status-editing) {
+  animation: code-edit-hint 2.8s ease-in-out infinite;
+}
+
+/* color 与 transform 各自按自己出现的断点独立插值，互不干扰 */
+@keyframes code-edit-hint {
+  0%, 100% { color: #00b894; transform: none; }
+  10% { color: rgba(0, 0, 0, 0.45); }
+  20% { color: #00b894; }
+  30% { color: rgba(0, 0, 0, 0.45); }
+  40% { color: #00b894; }
+  55% { transform: rotate(0deg); }
+  65% { transform: rotate(-16deg); }
+  75% { transform: rotate(14deg); }
+  85% { transform: rotate(-8deg); }
+  95% { transform: rotate(0deg); }
 }
 
 .di-dot {
