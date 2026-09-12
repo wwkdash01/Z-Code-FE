@@ -598,7 +598,9 @@ function applyViewport(
 .prompt-tools {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
+  /* 补回原先由图标前导 margin 顺带提供的左内缩，保持工具条左端位置不变 */
+  padding-left: 2px;
 }
 
 /* 占位按钮：在 antd small 基础上再缩小 25%，间距由 .prompt-tools 的 gap 控制 */
@@ -618,9 +620,11 @@ function applyViewport(
   background: transparent;
 }
 
-/* icon 与文字间距收窄到 2px */
-.prompt-tools :deep(.ant-btn) > span {
-  margin-inline-start: 2px;
+/* icon 与文字间距：必须用 .anticon + span 只命中文字。
+   antd 会把文字包进 <span>，图标的 <span class="anticon"> 是它的兄弟，
+   写 `> span` 会连图标一起命中——那份额外内缩还会计进按钮之间的视觉间距 */
+.prompt-tools :deep(.ant-btn > .anticon + span) {
+  margin-inline-start: 3px;
 }
 
 /* 点击反馈：只动图标，文字保持不动；无回弹，幅度小。
@@ -652,6 +656,13 @@ function applyViewport(
   100% {
     transform: none;
   }
+}
+
+/* 会用 transform 做动画的图标统一常驻合成层：否则动画一结束层被回收，图标回到父层
+   按小数布局坐标重新取整，会横向跳 1px（表现为「静止偏右、动画期间正常」） */
+.prompt-tools :deep(.ant-btn .anticon),
+.send-btn :deep(.anticon) {
+  will-change: transform;
 }
 
 .prompt-actions {
@@ -694,10 +705,8 @@ function applyViewport(
 
 /* 悬停：箭头抬起「准备起飞」并停住。用 transition 而非 animation：可中断、可逆，
    指针移开时从当前值平滑落回 */
+/* 悬停抬起/落回走 transition：可中断、可逆，指针移开时从当前值平滑落回 */
 .send-btn :deep(.anticon) {
-  /* 常驻合成层：让静止态与动画态走同一条光栅化路径。否则过渡一结束层被回收，
-     图标回到父层按小数坐标重新取整，会横向跳 1px */
-  will-change: transform;
   transition: transform 0.2s ease-out;
 }
 
