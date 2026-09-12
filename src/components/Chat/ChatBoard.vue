@@ -221,10 +221,6 @@ async function sendMessage(textArg?: string, opts: { animate: boolean } = { anim
 
   // 3. SSE streaming via composable
   const url = `${API_BASE}/apps/user/code-stream?appId=${props.appId}&userPrompt=${encodeURIComponent(text)}`
-  const streamingFlag = ref(false)
-
-  isGenerating.value = true
-  streamingFlag.value = false
 
   const { startStream } = useStreaming({
     url,
@@ -353,12 +349,12 @@ function applyViewport(
             placeholder="一个点子就够了～"
             :bordered="false"
             :auto-size="{ minRows: 2, maxRows: 6 }"
-            :disabled="disabled || isGenerating"
+            :disabled="disabled"
             @keydown.enter.exact.prevent="sendMessage()"
           />
         </div>
 
-        <!-- div2: 左侧占位工具 / 右侧模式开关 + 发送 -->
+        <!-- div2: 左侧占位工具 / 右侧模式开关 + 发送。生成期间这三组一并封住（输入框仍可打字） -->
         <div class="prompt-toolbar">
           <div class="prompt-tools">
             <AButton
@@ -366,6 +362,7 @@ function applyViewport(
               :key="tool.key"
               type="text"
               size="small"
+              :disabled="isGenerating"
               :class="[`tool-${tool.key}`, { 'tool-tapped': poppingIdx === idx }]"
               @click="triggerPop(idx)"
               @animationend="endPop"
@@ -376,7 +373,7 @@ function applyViewport(
           </div>
 
           <div class="prompt-actions">
-            <a-switch v-model:checked="chatModeChecked" size="small">
+            <a-switch v-model:checked="chatModeChecked" size="small" :disabled="isGenerating">
               <template #checkedChildren><EditOutlined /></template>
               <template #unCheckedChildren><QuestionOutlined /></template>
             </a-switch>
@@ -385,7 +382,8 @@ function applyViewport(
               :class="{
                 'is-edit': chatMode === 'edit',
                 'is-chat': chatMode === 'chat',
-                'is-idle': !hasInput,
+                /* 生成期间也走「不可发」暗色：此时允许打字，只看 hasInput 会让 disabled 的按钮显示成可点的饱和色 */
+                'is-idle': !hasInput || isGenerating,
                 'sending': sendingAnim,
               }"
               :disabled="sendDisabled"
@@ -397,7 +395,7 @@ function applyViewport(
           </div>
         </div>
 
-        <!-- 只读（查看他人作品）：遮罩封住整卡 -->
+        <!-- 只读（查看他人作品）：遮罩封住整卡。AI 生成期间不封卡——只由 sendDisabled 封住发送键 -->
         <div v-if="disabled" class="prompt-lock">{{ disabledTip }}</div>
       </div>
     </div>
@@ -613,11 +611,18 @@ function applyViewport(
   transition: color 0.2s;
 }
 
-/* 悬停/按下：icon 与文字变绿，并去掉 antd 自带的背景变色 */
-.prompt-tools :deep(.ant-btn:hover),
-.prompt-tools :deep(.ant-btn:active) {
+/* 悬停/按下：icon 与文字变绿，并去掉 antd 自带的背景变色。
+   必须带 :not(:disabled)——:hover 对 disabled 元素照样命中，否则封住后悬停仍会变绿 */
+.prompt-tools :deep(.ant-btn:not(:disabled):hover),
+.prompt-tools :deep(.ant-btn:not(:disabled):active) {
   color: #00b894;
   background: transparent;
+}
+
+/* 生成期间封住：antd 给的 disabled 颜色会被上面 .ant-btn 那条（特异性更高）盖掉，这里补回来 */
+.prompt-tools :deep(.ant-btn:disabled) {
+  color: rgba(0, 0, 0, 0.25);
+  cursor: not-allowed;
 }
 
 /* icon 与文字间距：必须用 .anticon + span 只命中文字。
