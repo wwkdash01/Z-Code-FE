@@ -11,18 +11,11 @@ import {
   VerticalAlignBottomOutlined,
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import {
-  getAppById,
-  getAppByAdmin,
-  previewApp,
-  deployApp,
-  updateAppById,
-  updateAppByAdmin,
-} from '@/api/appController'
+import { getAppById, previewApp, deployApp, updateAppById } from '@/api/appController'
 import { getImgDegradation } from '@/utils/getImgDegradation'
 import annoImg from '@/assets/anno.png'
 import { useLoginUserStore } from '@/stores/loginUser'
-import type { PreservedApp, PreservedAppVO } from '@/types/long-preserve'
+import type { PreservedAppVO } from '@/types/long-preserve'
 import ChatBoard from '@/components/Chat/ChatBoard.vue'
 
 const route = useRoute()
@@ -53,30 +46,21 @@ const initialPrompt = computed(() =>
 
 const appCover = computed(() => (app.value?.cover ? getImgDegradation(app.value.cover) : annoImg))
 
-// ========== 应用信息弹卡编辑 ==========
-const canEdit = computed(() => isOwner.value || isAdmin.value)
-const editForm = reactive({ appName: '', cover: '', priority: 0 })
-const editSnapshot = reactive({ appName: '', cover: '', priority: 0 })
+// ========== 应用信息弹卡 ==========
+/** 卡片对本人与管理员可见；但只有本人渲染可编辑输入，看别人的作品一律静态渲染 */
+const showDetail = computed(() => isOwner.value || isAdmin.value)
+const editForm = reactive({ appName: '' })
+const editSnapshot = reactive({ appName: '' })
 
 function syncEditFormFromApp() {
   editForm.appName = app.value?.appName || ''
-  editForm.cover = app.value?.cover || ''
   editSnapshot.appName = editForm.appName
-  editSnapshot.cover = editForm.cover
-  editSnapshot.priority = editForm.priority
 }
 
-function rollbackEditForm() {
-  editForm.appName = editSnapshot.appName
-  editForm.cover = editSnapshot.cover
-  editForm.priority = editSnapshot.priority
-}
-
-// owner（非 admin）失焦保存应用名称
+// 本人失焦保存应用名称（无论角色，统一走 user 接口）
 async function handleAppNameBlur() {
   const name = editForm.appName.trim()
   if (!name || name === editSnapshot.appName) return
-  if (isAdmin.value) return saveAdminChanges()
   try {
     const res = await updateAppById({ id: appId.value }, { appName: name })
     if (res.data.data) {
@@ -90,41 +74,6 @@ async function handleAppNameBlur() {
   } catch {
     message.error('更新失败')
     editForm.appName = editSnapshot.appName
-  }
-}
-
-// admin 失焦保存名称/封面/优先级
-async function saveAdminChanges() {
-  const unchanged =
-    editForm.appName.trim() === editSnapshot.appName &&
-    (editForm.cover || '') === editSnapshot.cover &&
-    editForm.priority === editSnapshot.priority
-  if (unchanged) return
-  try {
-    const res = await updateAppByAdmin(
-      { id: appId.value },
-      {
-        appName: editForm.appName.trim() || undefined,
-        cover: editForm.cover || undefined,
-        priority: editForm.priority,
-      },
-    )
-    if (res.data.data) {
-      editSnapshot.appName = editForm.appName.trim()
-      editSnapshot.cover = editForm.cover || ''
-      editSnapshot.priority = editForm.priority
-      if (app.value) {
-        app.value.appName = editSnapshot.appName
-        app.value.cover = editSnapshot.cover
-      }
-      message.success('更新成功')
-    } else {
-      message.error('更新失败：' + res.data.message)
-      rollbackEditForm()
-    }
-  } catch {
-    message.error('更新失败')
-    rollbackEditForm()
   }
 }
 
@@ -147,17 +96,6 @@ async function fetchApp() {
   } catch {
     message.error('获取应用信息失败')
     return
-  }
-  // admin 弹卡需要 priority 等全量字段
-  if (isAdmin.value) {
-    try {
-      const admRes = await getAppByAdmin({ id })
-      if (admRes.data.code === 200 && admRes.data.data) {
-        editForm.priority = (admRes.data.data as unknown as PreservedApp).priority ?? 0
-      }
-    } catch {
-      // 优先级加载失败不阻塞页面
-    }
   }
   syncEditFormFromApp()
   // 已生成过的应用进入页面时静默尝试加载预览（失败不提示）
@@ -236,7 +174,7 @@ onMounted(async () => {
           </span>
         </div>
         <a-popover
-          v-if="canEdit"
+          v-if="showDetail"
           trigger="click"
           placement="bottomRight"
           :arrow="false"
@@ -250,33 +188,17 @@ onMounted(async () => {
               <div class="pop-row">
                 <label class="edit-label">应用名称</label>
                 <a-input
+                  v-if="isOwner"
                   class="pop-input"
                   :bordered="false"
                   v-model:value="editForm.appName"
                   @blur="handleAppNameBlur"
                 />
+                <span v-else class="pop-value">{{ app?.appName || '-' }}</span>
               </div>
               <div class="pop-row">
                 <label class="edit-label">封面</label>
-                <a-input
-                  v-if="isAdmin"
-                  class="pop-input"
-                  :bordered="false"
-                  v-model:value="editForm.cover"
-                  @blur="saveAdminChanges"
-                />
-                <span v-else class="pop-value">{{ app?.cover || '无' }}</span>
-              </div>
-              <div v-if="isAdmin" class="pop-row">
-                <label class="edit-label">优先级</label>
-                <a-input-number
-                  class="pop-input"
-                  :bordered="false"
-                  :min="0"
-                  :max="99"
-                  v-model:value="editForm.priority"
-                  @blur="saveAdminChanges"
-                />
+                <span class="pop-value">{{ app?.cover || '无' }}</span>
               </div>
               <div class="pop-row">
                 <label class="edit-label">生成类型</label>
