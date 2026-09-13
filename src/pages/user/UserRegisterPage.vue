@@ -55,6 +55,7 @@
 <script lang="ts" setup>
 import { userRegister } from '@/api/userController';
 import { message } from 'ant-design-vue';
+import type { Rule } from 'ant-design-vue/es/form';
 import { reactive } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -66,7 +67,7 @@ const formState = reactive<API.UserRegisterRequestDTO>({
   confirmPassword: '',
 });
 
-const validateConfirmPassword = (_rule: any, value:string) => {
+const validateConfirmPassword = (_rule: Rule, value: string) => {
     if (!value) {
         // 为空不触发比对
         return Promise.resolve();
@@ -80,7 +81,8 @@ const validateConfirmPassword = (_rule: any, value:string) => {
     return Promise.resolve();
 }
 
-const handleSubmit = async (values: any) => {
+// a-form 提交回传的就是表单值，类型与 formState 一致
+const handleSubmit = async (values: API.UserRegisterRequestDTO) => {
   const res = await userRegister(values);
   if (res.data.code === 200 && res.data.data) {
     message.success("注册成功")

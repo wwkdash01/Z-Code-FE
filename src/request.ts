@@ -2,15 +2,13 @@ import axios from 'axios'
 import { redirect2Login } from '@/utils/auth'
 
 /**
- * 安全整数阈值，超过此值的整数需要转为字符串保留精度
- */
-const SAFE_INT_THRESHOLD = 9007199254740991 // Number.MAX_SAFE_INTEGER
-
-/**
  * 递归将响应中超过安全整数范围的大整数转为字符串，避免 JS Number 精度丢失。
  * 用于 axios transformResponse，在默认 JSON 解析之前执行。
+ *
+ * 返回值就是反序列化后的响应体，形态由后端决定，因此类型为 unknown，
+ * 由各调用点按生成的 API 类型断言（`res.data.data as XxxVO`）。
  */
-function preserveLongIntegrity(text: string): any {
+function preserveLongIntegrity(text: string): unknown {
   if (!text) return null
 
   /** 从 JSON 文本中匹配整数 token，超过阈值则返回字符串，否则返回原始数字 */

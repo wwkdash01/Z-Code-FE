@@ -45,12 +45,13 @@ const isBlank = computed(() => route.meta.blank === true)
   flex: 1;
   overflow-y: auto;
   padding: 24px;
-  background: #f5f5f5;
+  /* 页面主底色 #FAF9F6（与 ConfigProvider 的 colorBgLayout 同值） */
+  background: var(--color-page-bg);
 }
 
 .basic-layout__content--blank {
   padding: 0;
-  background: #fff;
+  background: var(--color-surface);
   overflow: hidden;
 }
 </style>

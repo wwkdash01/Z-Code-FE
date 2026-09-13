@@ -7,6 +7,7 @@ import { Textarea as ATextarea } from 'ant-design-vue'
 import { queryChatHistoryByCursor } from '@/api/chatHistoryController'
 import MessageRow from './MessageRow.vue'
 import annoImg from '@/assets/anno.png'
+import annoAngImg from '@/assets/anno-ang.png'
 import { API_BASE } from '@/config/api'
 import { useStreaming } from '@/composables/useStreaming'
 import {
@@ -44,7 +45,7 @@ const emit = defineEmits<{ streamComplete: [] }>()
 
 const loginUserStore = useLoginUserStore()
 const USER_AVATAR = computed(() => loginUserStore.loginUser.userAvatar || annoImg)
-const AI_AVATAR = annoImg
+const AI_AVATAR = annoAngImg
 
 const messages = ref<ChatMessage[]>([])
 const userInput = ref('')
@@ -93,6 +94,23 @@ function endSendFly(e: AnimationEvent) {
   // 同 endPop：动画跑在图标（子元素）上，且 scoped 会给 keyframes 名加作用域后缀，故前缀匹配
   if (!e.animationName.startsWith('send-fly')) return
   sendingAnim.value = false
+}
+
+/** 模式开关的一次性光晕：只在切换那一下播一次，颜色由 CSS 变量按新模式取 */
+const switchGlowing = ref(false)
+
+function triggerGlow() {
+  // 先置 false、下一帧再置回，保证连续切换能重播动画（同 triggerPop）
+  switchGlowing.value = false
+  requestAnimationFrame(() => {
+    switchGlowing.value = true
+  })
+}
+
+function endGlow(e: AnimationEvent) {
+  // 同 endPop：动画名带 scoped 后缀，且子元素的 animationend 也会冒泡上来，故按前缀过滤
+  if (!e.animationName.startsWith('switch-glow')) return
+  switchGlowing.value = false
 }
 
 /** 只认本行自己的渐显动画：子元素冒泡上来的 animationend 会提前清掉标记 */
@@ -373,10 +391,20 @@ function applyViewport(
           </div>
 
           <div class="prompt-actions">
-            <a-switch v-model:checked="chatModeChecked" size="small" :disabled="isGenerating">
-              <template #checkedChildren><EditOutlined /></template>
-              <template #unCheckedChildren><QuestionOutlined /></template>
-            </a-switch>
+            <!-- 包一层仅用于关掉 antd 点击水波纹（光晕）：不传 theme，其余 token 全继承 -->
+            <a-config-provider :wave="{ disabled: true }">
+              <a-switch
+                v-model:checked="chatModeChecked"
+                size="small"
+                :disabled="isGenerating"
+                :class="{ 'glow-pulse': switchGlowing }"
+                @change="triggerGlow"
+                @animationend="endGlow"
+              >
+                <template #checkedChildren><EditOutlined /></template>
+                <template #unCheckedChildren><QuestionOutlined /></template>
+              </a-switch>
+            </a-config-provider>
             <button
               class="send-btn"
               :class="{
@@ -428,7 +456,7 @@ function applyViewport(
   font-size: 12px;
   line-height: 1;
   opacity: 0.5;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--color-text-tertiary);
   cursor: pointer;
   transition: color 0.4s, opacity 0.4s;
 }
@@ -487,7 +515,7 @@ function applyViewport(
 
 .load-more-divider:not(:disabled):hover {
   opacity: 1;
-  color: #00b894;
+  color: var(--color-primary);
 }
 
 .load-more-divider:disabled {
@@ -525,7 +553,7 @@ function applyViewport(
 
 .empty-hint {
   text-align: center;
-  color: #999;
+  color: var(--color-text-tertiary);
   padding: 32px 0;
 }
 
@@ -557,7 +585,7 @@ function applyViewport(
 /* 灰色卡片：上下两个无边框 div */
 .prompt-card {
   position: relative;
-  background: #f5f5f5;
+  background: var(--color-surface-subtle);
   border-radius: 12px;
   padding: 0 5px 5px;
   display: flex;
@@ -575,7 +603,7 @@ function applyViewport(
   justify-content: center;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.6);
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--color-text-tertiary);
   font-size: 12px;
   cursor: not-allowed;
 }
@@ -607,7 +635,7 @@ function applyViewport(
   padding: 0;
   font-size: 10.5px;
   border-radius: 4px;
-  color: rgba(0, 0, 0, 0.65);
+  color: var(--color-text-secondary);
   transition: color 0.2s;
 }
 
@@ -615,13 +643,13 @@ function applyViewport(
    必须带 :not(:disabled)——:hover 对 disabled 元素照样命中，否则封住后悬停仍会变绿 */
 .prompt-tools :deep(.ant-btn:not(:disabled):hover),
 .prompt-tools :deep(.ant-btn:not(:disabled):active) {
-  color: #00b894;
+  color: var(--color-primary);
   background: transparent;
 }
 
 /* 生成期间封住：antd 给的 disabled 颜色会被上面 .ant-btn 那条（特异性更高）盖掉，这里补回来 */
 .prompt-tools :deep(.ant-btn:disabled) {
-  color: rgba(0, 0, 0, 0.25);
+  color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 
@@ -651,23 +679,24 @@ function applyViewport(
   --tap-r: 9deg;
 }
 
+/* 首尾帧也必须带 3D：写 none 会让合成层在动画首尾被回收，偏移会在点下去那一瞬回来 */
 @keyframes tool-tap {
   0% {
-    transform: none;
+    transform: translate3d(0, 0, 0);
   }
   45% {
-    transform: translateY(var(--tap-y, 0)) rotate(var(--tap-r, 0deg));
+    transform: translate3d(0, var(--tap-y, 0), 0) rotate(var(--tap-r, 0deg));
   }
   100% {
-    transform: none;
+    transform: translate3d(0, 0, 0);
   }
 }
 
 /* 会用 transform 做动画的图标统一常驻合成层：否则动画一结束层被回收，图标回到父层
-   按小数布局坐标重新取整，会横向跳 1px（表现为「静止偏右、动画期间正常」） */
-.prompt-tools :deep(.ant-btn .anticon),
-.send-btn :deep(.anticon) {
-  will-change: transform;
+   按小数布局坐标重新取整，会横向跳 1px（表现为「静止偏右、动画期间正常」）。
+   用真值 translate3d 而不是 will-change —— 后者只是提示，浏览器可在内存吃紧时撤掉提升 */
+.prompt-tools :deep(.ant-btn .anticon) {
+  transform: translate3d(0, 0, 0);
 }
 
 .prompt-actions {
@@ -676,15 +705,32 @@ function applyViewport(
   gap: 8px;
 }
 
-/* 开关底色与发送按钮的模式色保持一致 */
+/* 开关底色与发送按钮的模式色保持一致；同一个色值同时是光晕色的唯一真值源（--glow-rgb） */
 .prompt-actions :deep(.ant-switch.ant-switch-checked),
 .prompt-actions :deep(.ant-switch.ant-switch-checked:hover) {
-  background: #00b894;
+  background: var(--color-primary);
+  --glow-rgb: var(--color-primary-rgb);
 }
 
 .prompt-actions :deep(.ant-switch:not(.ant-switch-checked)),
 .prompt-actions :deep(.ant-switch:not(.ant-switch-checked):hover) {
-  background: #595959;
+  background: var(--color-neutral-strong);
+  --glow-rgb: var(--color-neutral-strong-rgb);
+}
+
+/* 切换脉冲：向外扩散一圈后淡到透明。
+   不能用 opacity 淡出——那会把开关根节点连同滑块、底色一起淡掉，所以改为插值 box-shadow 的 alpha */
+.prompt-actions :deep(.ant-switch.glow-pulse) {
+  animation: switch-glow 0.45s ease-out;
+}
+
+@keyframes switch-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--glow-rgb), 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 4px rgba(var(--glow-rgb), 0);
+  }
 }
 
 /* 圆形发送按钮：底色 = 模式色 × 有无文本 */
@@ -699,7 +745,7 @@ function applyViewport(
   justify-content: center;
   border: none;
   border-radius: 50%;
-  background: #bfbfbf;
+  background: var(--color-text-quaternary);
   color: #fff;
   font-size: 14px;
   cursor: pointer;
@@ -712,13 +758,15 @@ function applyViewport(
    指针移开时从当前值平滑落回 */
 /* 悬停抬起/落回走 transition：可中断、可逆，指针移开时从当前值平滑落回 */
 .send-btn :deep(.anticon) {
+  /* 静止态也带 3D 变换：will-change 只是提示、浏览器可撤掉；translate3d 是实际值，必须建层 */
+  transform: translate3d(0, 0, 0);
   transition: transform 0.2s ease-out;
 }
 
 /* :not(:disabled) 是必需的：发送期间按钮 disabled，悬停整体失效，
    飞行动画结束后图标才不会被悬停值再拽起来 */
 .send-btn:not(:disabled):hover :deep(.anticon) {
-  transform: translateY(var(--fly-lift));
+  transform: translate3d(0, var(--fly-lift), 0);
 }
 
 /* 用户主动提交：箭头从抬起处向上飞出圆形，再从下方升回圆心 */
@@ -729,27 +777,27 @@ function applyViewport(
 /* 0% 接住悬停终态；100% 回 0（发送后按钮 disabled，静止值就是 0）。
    40% / 40.01% 两帧几乎重合，插值跨度≈0，否则箭头会从圆形中间扫过去 */
 @keyframes send-fly {
-  0% { transform: translateY(var(--fly-lift)); }
-  40% { transform: translateY(-170%); }
-  40.01% { transform: translateY(170%); }
-  100% { transform: translateY(0); }
+  0% { transform: translate3d(0, var(--fly-lift), 0); }
+  40% { transform: translate3d(0, -170%, 0); }
+  40.01% { transform: translate3d(0, 170%, 0); }
+  100% { transform: translate3d(0, 0, 0); }
 }
 
 .send-btn.is-edit {
-  background: #00b894;
+  background: var(--color-primary);
 }
 
 .send-btn.is-chat {
-  background: #595959;
+  background: var(--color-neutral-strong);
 }
 
 /* 无文本：在模式色基础上变暗，规则靠后覆盖上面的模式色 */
 .send-btn.is-edit.is-idle {
-  background: #84d2bf;
+  background: var(--color-primary-hover);
 }
 
 .send-btn.is-chat.is-idle {
-  background: #bfbfbf;
+  background: var(--color-text-quaternary);
 }
 
 .send-btn:disabled {

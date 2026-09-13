@@ -125,11 +125,19 @@ defineExpose({ reload: fetchData })
                   创建于 {{ dayjs(app.createTime).format('YYYY-MM-DD HH:mm') }}
                 </div>
               </div>
-              <div class="my-app-actions">
-                <a-button size="small" type="link" @click="viewChat(app)">查看对话</a-button>
-                <a-button v-if="app.deployKey" size="small" type="link" @click="viewWork(app)">
-                  查看作品
-                </a-button>
+              <!-- 灰色蒙版：hover / 键盘聚焦时淡入，两个操作按钮在其内 -->
+              <div class="my-app-mask">
+                <div class="my-app-actions">
+                  <a-button class="action-chat" size="small" @click="viewChat(app)">查看对话</a-button>
+                  <a-button
+                    v-if="app.deployKey"
+                    class="action-work"
+                    size="small"
+                    @click="viewWork(app)"
+                  >
+                    查看作品
+                  </a-button>
+                </div>
               </div>
             </div>
           </div>
@@ -158,7 +166,7 @@ defineExpose({ reload: fetchData })
 }
 
 .my-app-card {
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -176,7 +184,7 @@ defineExpose({ reload: fetchData })
 .my-app-title {
   font-size: 22px;
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.88);
+  color: var(--color-text);
   margin: 0;
 }
 
@@ -191,7 +199,9 @@ defineExpose({ reload: fetchData })
 }
 
 .my-app-item-inner {
-  background: #fff;
+  /* 蒙版的定位容器 */
+  position: relative;
+  background: var(--color-surface);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
@@ -209,7 +219,7 @@ defineExpose({ reload: fetchData })
   height: 160px;
   background-size: cover;
   background-position: center;
-  background-color: #f0f0f0;
+  background-color: var(--color-surface-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -219,7 +229,9 @@ defineExpose({ reload: fetchData })
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  /* 占位首字母底：品牌陶土的同色系渐变（旧的冷紫蓝与暖底冲突）。
+     色值取令牌，换肤时跟随 */
+  background: linear-gradient(135deg, var(--color-primary-hover), var(--color-primary-active));
   color: #fff;
   font-size: 22px;
   font-weight: 700;
@@ -235,7 +247,7 @@ defineExpose({ reload: fetchData })
 .my-app-name {
   font-size: 14px;
   font-weight: 500;
-  color: rgba(0, 0, 0, 0.88);
+  color: var(--color-text);
   margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
@@ -244,18 +256,62 @@ defineExpose({ reload: fetchData })
 
 .my-app-time {
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--color-text-tertiary);
+}
+
+/* 灰色蒙版：hover / 键盘聚焦时淡入，300ms */
+.my-app-mask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.my-app-item-inner:hover .my-app-mask,
+.my-app-item-inner:focus-within .my-app-mask {
+  opacity: 1;
 }
 
 .my-app-actions {
   display: flex;
-  gap: 4px;
-  padding: 4px 8px 8px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 查看对话：绿色 = 对话区用户气泡同色（MessageRow 的 .sender-user .bb）。
+   :deep(.ant-btn.xxx) 把特异性抬到 (0,3,0)，压过 antd 的默认 / hover 规则，免得底色被 :hover 变回去 */
+.my-app-actions :deep(.ant-btn.action-chat) {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+  border-radius: 40%;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* 查看作品：灰色 = 输入区灰色卡片背景（ChatBoard 的 .prompt-card） */
+.my-app-actions :deep(.ant-btn.action-work) {
+  background: var(--color-surface-subtle);
+  border-color: var(--color-surface-subtle);
+  color: var(--color-text);
+  border-radius: 40%;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* 蒙版上的按钮要有悬停反馈，否则像块死图 */
+.my-app-actions :deep(.ant-btn.action-chat:hover),
+.my-app-actions :deep(.ant-btn.action-work:hover) {
+  filter: var(--hover-dim);
 }
 
 .my-app-empty {
   text-align: center;
-  color: rgba(0, 0, 0, 0.35);
+  color: var(--color-text-quaternary);
   padding: 32px 0;
 }
 

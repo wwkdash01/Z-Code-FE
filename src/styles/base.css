@@ -1,0 +1,125 @@
+/* 全站字体栈：antd 的 reset.css 只给 html 声明了通用关键字 sans-serif，
+   macOS 上中文会回退到比 PingFang SC 差的黑体，Latin 走 Helvetica。
+   这里把中英文各自的系统字体显式写死，不加载任何 webfont。
+   令牌定义在 tokens.css（--font-sans / --font-serif）。 */
+html,
+body {
+  font-family: var(--font-sans);
+}
+
+body {
+  background: var(--color-page-bg);
+  color: var(--color-text);
+}
+
+/* ========== 标题层级：暖衬线 ==========
+   对齐 Anthropic 的 Copernicus 观感。Copernicus 是 Anthropic 的私有字体
+   （CDN 无公开资源、无再分发授权），所以用观感最接近的暖衬线系统字体代替：
+   macOS 上命中 Apple New York（Iowan Old Style 是其直系前身），
+   Windows / Linux 回退 Georgia，中文回退宋体系。
+   决定用系统栈而不是引入免费 webfont：零网络依赖、零部署体积、不闪字。
+   只作用于语义标题与显式挂 .u-serif 的元素，正文 / 表格 / 表单保持无衬线，
+   避免密集表格被衬线拉散。 */
+h1,
+h2,
+h3,
+h4,
+.u-serif,
+.ant-modal-title,
+.ant-card-head-title {
+  font-family: var(--font-serif);
+  /* 衬线在小字号下笔画偏细，字重提到 600 才撑得住标题层级 */
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* ========== 管理页面回退无衬线 ==========
+   后台是给管理员自己用的，用户看不到，沿用无衬线以保持表格密度下的可读性。
+   为什么不直接把这几个页面的标题排除掉了事：管理页现在没有语义标题，
+   衬线唯一漏进来的地方是 AppInfoDetailEditCard 的 .ant-modal-title，
+   以及将来新增的标题。整段回退更稳，且不影响前台。
+
+   为什么需要 !important：antd 的样式是运行时注入到 <head> 末尾的，
+   base.css 在构建产物里排在它前面；同优先级下后注入的赢，
+   所以这里靠提高优先级把管理区锁回无衬线。 */
+.admin-scope,
+.admin-scope h1,
+.admin-scope h2,
+.admin-scope h3,
+.admin-scope h4,
+.admin-scope .u-serif,
+.admin-scope .ant-modal-title,
+.admin-scope .ant-card-head-title {
+  font-family: var(--font-sans) !important;
+  letter-spacing: normal;
+}
+
+/* ========== 链接与文本选区跟随品牌色 ========== */
+a {
+  color: var(--color-primary);
+}
+
+a:hover {
+  color: var(--color-primary-hover);
+}
+
+::selection {
+  background: var(--color-primary-soft);
+}
+
+/* antd Tag 在列宽偏窄时会把中文折成两行（实测「管理员」在 69px 列里折成「管理/员」，
+   高度从 22px 变 44px）。标签是原子信息块，不该折行，这里全局兜住。 */
+.ant-tag {
+  white-space: nowrap;
+}
+
+/* ========== 滚动条：跟随暖色底，去掉系统冷灰 ========== */
+* {
+  scrollbar-color: var(--color-border) transparent;
+}
+
+/* ========== 表格名称列：固定宽度 + 超出才渐隐 ==========
+   由 @/composables/useNameTruncation 负责判定并挂 .name-cell--overflow，
+   这里放布局与视觉。应用管理（应用名称）、用户管理（用户名/账号）、
+   应用编辑页 header（应用名）共用这一套。 */
+.name-cell {
+  position: relative;
+  display: inline-block;
+  vertical-align: bottom;
+  /* 宽度由内联样式给（useNameTruncation 的 boxStyle），保证口径唯一 */
+  max-width: 100%;
+  height: 22px;
+  line-height: 22px;
+  overflow: hidden;
+}
+
+/* 文字左对齐溢出：从盒子左缘起排，超出部分只在右缘被裁掉。
+   inline-block 让 scrollWidth 能报出文字自然宽度，供溢出判定使用。
+
+   历史：这里曾经是 `left:50% + translateX(-50%)` 的居中裁切，结果是长文本
+   两端同时被切（`dsf41测试…` 开头会丢字），观感上像「从中间截断」。
+   改成左对齐后，无论文字多长都从第一个字开始读，右侧接渐隐，
+   与「省略号」的阅读预期一致。 */
+.name-cell-text {
+  position: absolute;
+  left: 0;
+  display: inline-block;
+  max-width: none;
+  white-space: nowrap;
+}
+
+/* 渐隐只挂在「确实溢出」的格子上：右缘 28px 由透明过渡到行底色。
+   起止两端都取令牌：底色换肤时这里跟着走，不用重新调。
+   （不用 color-mix 是为了兜住 Safari < 16.2） */
+.name-cell--overflow::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 28px;
+  background: linear-gradient(
+    to right,
+    var(--color-surface-fade-from),
+    var(--color-surface-fade-to) 100%
+  );
+  pointer-events: none;
+}

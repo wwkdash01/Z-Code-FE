@@ -15,10 +15,10 @@ const footerText = 'wwk z-code platform by wwk'
   justify-content: center;
   height: 8vh;
   padding: 0 24px;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--color-text-tertiary);
   font-size: 14px;
   text-align: center;
-  background: #fff;
-  border-top: 1px solid #f0f0f0;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
 }
 </style>

@@ -291,7 +291,7 @@ const showCursor = computed(() => {
   /* 背景透明后阴影会留下一个浅色矩形轮廓，必须一并去掉 */
   box-shadow: none;
   padding-left: 0;
-  color: rgba(0, 0, 0, 0.88);
+  color: var(--color-text);
   max-width: 100%;
 }
 
@@ -314,11 +314,11 @@ const showCursor = computed(() => {
   /* 与上下段落各留出 5px */
   margin: 5px 0;
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--color-text-tertiary);
 }
 
 .code-status :deep(.code-status-done) {
-  color: #00b894;
+  color: var(--color-primary);
 }
 
 /* 编辑中：先绿/原色闪烁，再左右摇晃。color 经 currentColor 驱动 svg fill */
@@ -328,11 +328,11 @@ const showCursor = computed(() => {
 
 /* color 与 transform 各自按自己出现的断点独立插值，互不干扰 */
 @keyframes code-edit-hint {
-  0%, 100% { color: #00b894; transform: none; }
+  0%, 100% { color: var(--color-primary); transform: none; }
   10% { color: rgba(0, 0, 0, 0.45); }
-  20% { color: #00b894; }
+  20% { color: var(--color-primary); }
   30% { color: rgba(0, 0, 0, 0.45); }
-  40% { color: #00b894; }
+  40% { color: var(--color-primary); }
   55% { transform: rotate(0deg); }
   65% { transform: rotate(-16deg); }
   75% { transform: rotate(14deg); }
@@ -344,7 +344,7 @@ const showCursor = computed(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #bfbfbf;
+  background: var(--color-text-quaternary);
   animation: di-bounce 1.4s infinite ease-in-out;
 }
 .di-dot:nth-child(1) { animation-delay: -0.32s; }
@@ -365,7 +365,7 @@ const showCursor = computed(() => {
 }
 
 .t-cursor {
-  color: #00b894;
+  color: var(--color-primary);
   animation: tblink 1s infinite;
 }
 
@@ -376,7 +376,7 @@ const showCursor = computed(() => {
 
 /* User messages: teal, right-aligned, no avatar, bubble shrinks to content up to 80% */
 .sender-user .bb {
-  background-color: #00b894;
+  background-color: var(--color-primary);
   color: #fff;
   max-width: 80%;
 }
@@ -385,6 +385,6 @@ const showCursor = computed(() => {
 .msg-time {
   font-size: 11px;
   line-height: 1;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--color-text-tertiary);
 }
 </style>

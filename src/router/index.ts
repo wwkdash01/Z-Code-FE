@@ -2,7 +2,6 @@ import UserManagePage from '@/pages/admin/UserManagePage.vue'
 import AppManagePage from '@/pages/admin/AppManagePage.vue'
 import UserLoginPage from '@/pages/user/UserLoginPage.vue'
 import UserRegisterPage from '@/pages/user/UserRegisterPage.vue'
-import TestPage from '@/pages/test/TestPage.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
@@ -51,11 +50,6 @@ const router = createRouter({
       path: '/app/app-info',
       name: '应用信息修改',
       component: () => import('../pages/app/AppInfoEditPage.vue'),
-    },
-    {
-      path: '/test',
-      name: '测试页',
-      component: TestPage
     }
   ],
 })

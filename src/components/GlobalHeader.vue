@@ -10,9 +10,6 @@ import { userLogout } from '@/api/userController'
 
 // 获取登录用户状态
 const loginUserStore = useLoginUserStore();
-const isAdmin = computed(() => {
-  return loginUserStore.loginUser.userRole === 'admin'
-})
 
 const route = useRoute()
 const router = useRouter()
@@ -21,10 +18,10 @@ const screens = Grid.useBreakpoint()
 const isMobile = computed(() => screens.value.md === false)
 const menuOpen = ref(false)
 
+// 管理入口（用户管理 / 应用管理）已移到右下角的悬浮球（AdminFloatingBall），
+// 这里只渲染对所有人可见的导航，不再做 isAdmin 过滤
 const menuItems = computed(() =>
-  navItems
-  .filter((item) => !item.path?.startsWith('/admin') || isAdmin.value)
-  .map((item) => ({
+  navItems.map((item) => ({
     key: item.key,
     label: item.label,
     path: item.path,
@@ -44,10 +41,10 @@ const selectedKeys = computed(() => {
 const handleLogout = async () => {
   const res = await userLogout();
   if (res.data.code === 200 && res.data.data) {
-    await loginUserStore.setLoginUser('未登录');
+    await loginUserStore.setLoginUser({ userName: '未登录' });
     message.success('注销成功')
     router.push({
-      path: '/login',
+      path: '/user/login',
       replace: true
     })
   } else {
@@ -148,8 +145,8 @@ onMounted(() => {
   gap: 32px;
   height: 8vh;
   padding: 0 24px;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .global-header__brand {
@@ -173,7 +170,7 @@ onMounted(() => {
   font-size: 18px;
   font-weight: 600;
   letter-spacing: 0.3px;
-  color: rgba(0, 0, 0, 0.88);
+  color: var(--color-text);
 }
 
 .global-header__nav {

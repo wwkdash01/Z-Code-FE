@@ -58,8 +58,8 @@
 
 /* AI 消息：灰色，靠右（贴AI头像） */
 .message-row-ai .bubble {
-	background-color: #f0f0f0;
-	color: rgba(0, 0, 0, 0.88);
+	background-color: var(--color-surface-subtle);
+	color: var(--color-text);
 }
 
 /* AI loading（三点指示器） */
@@ -69,16 +69,16 @@
 	justify-content: center;
 	padding: 12px 20px;
 	border-radius: 12px;
-	background-color: #f0f0f0;
+	background-color: var(--color-surface-subtle);
 }
 
 /* AI streaming（内容+闪烁光标） */
 .bubble-streaming {
-	color: rgba(0, 0, 0, 0.88);
+	color: var(--color-text);
 }
 
 .typing-cursor {
-	color: #00b894;
+	color: var(--color-primary);
 	animation: blink 1s infinite;
 }
 
@@ -89,8 +89,8 @@
 
 /* 用户消息：青色，靠左（贴用户头像） */
 .message-row-user .bubble {
-	background-color: #00b894;
-	color: #ffffff;
+	background-color: var(--color-primary);
+	color: #fff;  /* 用户气泡上的反白文字，不参与换肤 */
 }
 
 /* ========== 打字指示器 ========== */
@@ -104,7 +104,7 @@
 	width: 8px;
 	height: 8px;
 	border-radius: 50%;
-	background: #bfbfbf;
+	background: var(--color-text-quaternary);  /* 打字指示点：跟文字弱化色同源 */
 	animation: bounce 1.4s infinite ease-in-out;
 }
 

@@ -3,14 +3,15 @@ import { getAppById, updateAppById } from '@/api/appController';
 import { getImgDegradation } from '@/utils/getImgDegradation';
 import { Avatar, message } from 'ant-design-vue';
 import { onMounted, ref } from 'vue'
-import { InfoCircleFilled, SettingOutlined, EditOutlined } from '@ant-design/icons-vue'
+import { InfoCircleFilled } from '@ant-design/icons-vue'
 
 const props = defineProps<{ appId: string}>()
 const appVO = ref<API.AppVO>()
 const editAppName = ref('')
 const previousAppName = ref('')
 
-async function updateAppCover(coverURL:string) {
+// 封面更换：当前为 mock，点击头像只提示，后续接真实上传
+async function updateAppCover() {
     message.info("更新图片mock")
 }
 
@@ -61,7 +62,7 @@ onMounted(async () => {
 
     <div class="app-info-card">
 
-        <div class="avatar-div" @click="updateAppCover('')">
+        <div class="avatar-div" @click="updateAppCover()">
             <a-upload>
                 <Avatar class="avatar" :src="getImgDegradation(appVO?.cover)" :size="50" />
             </a-upload>
@@ -138,7 +139,7 @@ onMounted(async () => {
 
 .createTime {
     font-size: 10px;
-    color: #999;
+    color: var(--color-text-tertiary);
     margin-top: 4px;
 }
 
@@ -189,7 +190,7 @@ onMounted(async () => {
 
 .info-icon {
     font-size: 17px;
-    color: #999;
+    color: var(--color-text-tertiary);
     cursor: pointer;
 }
 

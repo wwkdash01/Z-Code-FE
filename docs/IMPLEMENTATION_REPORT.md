@@ -110,5 +110,8 @@ src/
 
 - 上传、提示词优化按钮（维持 TODO）
 - 对话页代码页/设置页 tab（移除不重建）
-- TestPage / test 组件 / useSSE* 沙箱文件未动
 - 聊天历史管理页、生产部署配置
+
+## 六、后续变更
+
+- 测试页及其沙箱产物已整体删除：`src/pages/test/`、`src/components/test/`、`src/composables/useSSE.ts`、`src/composables/useSSETest.ts`，同时移除 `/test` 路由与导航项。生产流式链路改由 `useStreaming.ts`（ChatBoard 使用）与 `useSSEStream.ts` 承担，不受影响。

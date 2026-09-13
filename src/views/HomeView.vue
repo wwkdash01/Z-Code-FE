@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { UploadOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons-vue'
 import MyAppCard from '@/components/MyAppCard.vue'
 import FeaturedAppCard from '@/components/FeaturedAppCard.vue'
 import { saveApp } from '@/api/appController'
+import { APP_TAG_OPTIONS } from '@/config/appTag'
 
 const router = useRouter()
 const examplePrompts = ref([
@@ -16,7 +17,6 @@ const examplePrompts = ref([
 ])
 
 const promptText = ref('')
-const uploading = ref(false)
 const optimizing = ref(false)
 const submitting = ref(false)
 
@@ -58,7 +58,7 @@ const handleSaveApp = async () => {
     } else {
       message.error('创建失败：' + res.data.message)
     }
-  } catch (e) {
+  } catch {
     message.error('创建失败')
   } finally {
     submitting.value = false
@@ -95,7 +95,7 @@ async function handleOptimize() {
     // const res = await promptOptimize({ text: promptText.value })
     // if (res.data.code === 200) promptText.value = res.data.data
     message.success('TODO: 提示词优化功能待实现')
-  } catch (e) {
+  } catch {
     message.error('优化失败')
   } finally {
     optimizing.value = false
@@ -215,9 +215,9 @@ async function handleSubmit() {
           <div class="field-item">
             <label class="field-label">应用标签</label>
             <a-radio-group v-model:value="appForm.appTag">
-              <a-radio value="tool">工具</a-radio>
-              <a-radio value="webPage">网页</a-radio>
-              <a-radio value="profile">个人博客</a-radio>
+              <a-radio v-for="tag in APP_TAG_OPTIONS" :key="tag.value" :value="tag.value">
+                {{ tag.label }}
+              </a-radio>
             </a-radio-group>
           </div>
         </div>
@@ -234,7 +234,15 @@ async function handleSubmit() {
 <style scoped>
 /* ========== 品牌区 ========== */
 .hero-section {
-  background: linear-gradient(135deg, #e0f7fa 0%, #e8f5e9 40%, #f3e5f5 100%);
+  /* 暖色品牌区：比页面底色略深一档，右下角带一点陶土微光，
+     与全站主色同源，不再是旧的冷青绿紫渐变。
+     三个色值全走令牌：起止两端是专用的品牌洗色，中间回到页面底色 */
+  background: linear-gradient(
+    135deg,
+    var(--color-brand-wash-from) 0%,
+    var(--color-page-bg) 45%,
+    var(--color-brand-wash-to) 100%
+  );
   padding: 80px 24px 60px;
   text-align: center;
 }
@@ -247,9 +255,9 @@ async function handleSubmit() {
 .hero-title {
   font-size: 36px;
   font-weight: 700;
-  color: #1a1a2e;
+  color: var(--color-text-heading);
   margin: 0 0 12px;
-  letter-spacing: 2px;
+  letter-spacing: 0.5px;
 }
 
 .hero-emoji {
@@ -259,7 +267,7 @@ async function handleSubmit() {
 
 .hero-subtitle {
   font-size: 16px;
-  color: rgba(0, 0, 0, 0.55);
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
@@ -271,7 +279,7 @@ async function handleSubmit() {
 }
 
 .prompt-card {
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 16px;
   padding: 20px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -292,19 +300,19 @@ async function handleSubmit() {
   transition: border-color 0.2s;
   box-sizing: border-box;
   font-family: inherit;
-  color: rgba(0, 0, 0, 0.88);
+  color: var(--color-text);
   background: transparent;
   min-height: 80px;
 }
 
 .prompt-textarea:focus {
-  border-color: #4096ff;
-  background: #fafafa;
+  border-color: var(--color-primary-border);
+  background: var(--color-surface-subtle);
   border-radius: 8px;
 }
 
 .prompt-textarea::placeholder {
-  color: rgba(0, 0, 0, 0.35);
+  color: var(--color-text-quaternary);
 }
 
 .prompt-toolbar {
@@ -313,7 +321,7 @@ async function handleSubmit() {
   gap: 8px;
   padding-top: 12px;
   margin-top: 8px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--color-border);
 }
 
 .prompt-toolbar-spacer {
@@ -333,8 +341,8 @@ async function handleSubmit() {
   display: inline-block;
   padding: 6px 16px;
   border-radius: 20px;
-  background: #e6f4ff;
-  color: #1677ff;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
@@ -343,7 +351,7 @@ async function handleSubmit() {
 }
 
 .example-tag:hover {
-  background: #1677ff;
+  background: var(--color-primary);
   color: #fff;
 }
 
@@ -375,7 +383,7 @@ async function handleSubmit() {
   border-radius: 8px;
   background-size: cover;
   background-position: center;
-  background-color: #f0f0f0;
+  background-color: var(--color-surface-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -384,16 +392,16 @@ async function handleSubmit() {
 
 .cover-preview :deep(.ant-icon) {
   font-size: 24px;
-  color: #bfbfbf;
+  color: var(--color-text-quaternary);
 }
 
 .cover-placeholder {
-  color: #bfbfbf;
+  color: var(--color-text-quaternary);
 }
 
 .cover-hint {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--color-text-tertiary);
 }
 
 .divider {
@@ -425,7 +433,7 @@ async function handleSubmit() {
 .field-label {
   font-size: 13px;
   font-weight: 500;
-  color: rgba(0, 0, 0, 0.65);
+  color: var(--color-text-secondary);
 }
 
 .required {

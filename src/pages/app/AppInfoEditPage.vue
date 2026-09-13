@@ -15,7 +15,8 @@ const route = useRoute()
 const router = useRouter()
 const loginUserStore = useLoginUserStore()
 
-const isAdmin = computed(() => loginUserStore.loginUser.userRole === 'admin')
+// 管理员判定取自 store 的单一数据源（与 access.ts 路由守卫、Header、悬浮球同一口径）
+const isAdmin = computed(() => loginUserStore.isAdmin)
 const appId = computed(() => (route.query.id as string) || '')
 
 const loading = ref(false)
@@ -172,7 +173,7 @@ onMounted(async () => {
 
 .form-hint {
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--color-text-tertiary);
   margin-top: 4px;
 }
 

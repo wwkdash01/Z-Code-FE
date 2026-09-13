@@ -4,18 +4,18 @@ import { useLoginUserStore } from '@/stores/loginUser';
 import { getAuthMsg, getRedirectURL } from '@/utils/auth';
 import { message } from 'ant-design-vue';
 import { onMounted, reactive } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { useRouter } from 'vue-router';
 
 const loginUserStore = useLoginUserStore();
 const router = useRouter();
-const route = useRoute();
 
 const formState = reactive<API.UserLoginRequestDTO>({
   userAccount: '',
   password: '',
 });
 
-const handleSubmit = async (values: any) => {
+// a-form 提交回传的就是表单值，类型与 formState 一致
+const handleSubmit = async (values: API.UserLoginRequestDTO) => {
   const res = await userLogin(values);
   const { redirectURL } = getRedirectURL();
 

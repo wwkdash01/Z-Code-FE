@@ -52,6 +52,7 @@ declare namespace API {
     initPrompt?: string;
     codeGenType?: "singleton" | "multifile";
     appTag?: "tool" | "webPage" | "profile";
+    priority?: number;
     deployKey?: string;
     createTime?: string;
     userName?: string;
@@ -312,6 +313,11 @@ declare namespace API {
     /** 应用主键ID */
     appId: string;
     userPrompt: string;
+  };
+
+  type getFeaturedAppByIdParams = {
+    /** 应用ID */
+    id: any;
   };
 
   type getFeaturedAppByPageParams = {

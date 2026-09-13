@@ -1,6 +1,6 @@
 /**
  * SSE 流式请求工具
- * 复用 @composables/useSSETest.ts 的解析逻辑
+ * 逐行解析 text/event-stream，把每个 data 片段交给 onChunk
  */
 
 export async function fetchStream(
