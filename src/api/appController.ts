@@ -155,21 +155,6 @@ export async function removeAppById(
   });
 }
 
-/** 此处后端没有提供注释 GET /apps/user/code-stream */
-export async function getCodeGenStream(
-  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params: API.getCodeGenStreamParams,
-  options?: { [key: string]: any }
-) {
-  return request<API.ServerSentEventString[]>("/apps/user/code-stream", {
-    method: "GET",
-    params: {
-      ...params,
-    },
-    ...(options || {}),
-  });
-}
-
 /** 此处后端没有提供注释 POST /apps/user/deployment */
 export async function deployApp(
   body: API.AppDeployRequestDTO,

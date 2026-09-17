@@ -83,3 +83,21 @@ export async function queryChatHistoryByCursor(
     }
   );
 }
+
+/** 此处后端没有提供注释 POST /chatHistories/user/retraction */
+export async function retractUserPrompt(
+  body: API.RetractUserPromptRequestDTO,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseretractUserPrompt>(
+    "/chatHistories/user/retraction",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      data: body,
+      ...(options || {}),
+    }
+  );
+}

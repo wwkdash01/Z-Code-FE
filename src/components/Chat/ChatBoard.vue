@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useLoginUserStore } from '@/stores/loginUser'
 import { message } from 'ant-design-vue'
 import { Button as AButton } from 'ant-design-vue'
 import { Textarea as ATextarea } from 'ant-design-vue'
-import { queryChatHistoryByCursor } from '@/api/chatHistoryController'
+import { queryChatHistoryByCursor, retractUserPrompt } from '@/api/chatHistoryController'
 import MessageRow from './MessageRow.vue'
 import annoImg from '@/assets/anno.png'
 import annoAngImg from '@/assets/anno-ang.png'
 import { API_BASE } from '@/config/api'
-import { useStreaming } from '@/composables/useStreaming'
+import { useStreaming, StreamError } from '@/composables/useStreaming'
 import {
   CloudUploadOutlined,
   ExperimentOutlined,
@@ -29,6 +29,18 @@ interface ChatMessage {
   renderState: 'history' | 'loading' | 'streaming' | 'done'
   /** 仅新发送的消息为 true，用于播放渐显动画 */
   entering?: boolean
+  /** 该气泡对应的用户提示词，重试时复用（不再重复插一条用户消息） */
+  prompt?: string
+  /** 失败类型；有值即表示这是失败气泡，MessageRow 据此渲染异常态和重试按钮 */
+  failed?: 'pre-stream' | 'mid-stream'
+  /**
+   * 该条在 chat_history 里的主键。
+   * 只有从游标接口渲染出来的历史记录才有 —— 刚发出去的那条是本地占位对象，
+   * 后端落库的 id 前端并不知道。撤回时据此决定「传 id」还是「让后端自己推断」。
+   */
+  messageId?: string
+  /** 正在播退场动画（撤回）。播完才真正从队列里移除 */
+  leaving?: boolean
 }
 
 // ---------- props & state ----------
@@ -60,8 +72,47 @@ const chatModeChecked = computed({
   },
 })
 const hasInput = computed(() => !!userInput.value.trim())
-// 发送按钮可用性只看 textarea：只读场景由 prompt-card 遮罩拦截，不参与这里
-const sendDisabled = computed(() => !hasInput.value || isGenerating.value)
+
+/**
+ * 最新一条 AI 消息处于失败态 → 必须先重试才能继续。
+ *
+ * 敢只用「最后一条」判断，是因为失败之后 sendMessage 会被这里挡住、
+ * 不会再插入新的用户消息，所以失败气泡恒在队尾。
+ * 这同时也是后端「error 记录只可能落在最新位置」那条假设的前端侧保证。
+ */
+const hasPendingFailure = computed(() => {
+  const last = messages.value[messages.value.length - 1]
+  // 必须同时有 prompt 才算「待恢复」：没有提示词就重试不了，
+  // 那时再封锁输入就会把用户彻底卡死（蒙版写着「请先恢复对话」，点重试却毫无反应）。
+  // 所以这里的条件与 MessageRow 里 retry 按钮的可用条件保持一致。
+  return !!last && last.sender === 'ai' && !!last.failed && !!last.prompt
+})
+
+/** 输入区是否被遮罩封住。只读（查看他人作品）与失败待恢复共用同一块遮罩 */
+const promptLocked = computed(() => !!props.disabled || hasPendingFailure.value)
+
+/** 遮罩文案。只读优先（沿用调用方给的 disabledTip） */
+const promptLockText = computed(() => {
+  if (props.disabled) return props.disabledTip ?? ''
+  if (hasPendingFailure.value) return '请先恢复对话'
+  return ''
+})
+
+/**
+ * 「失败待恢复」那一轮对应的用户消息 uid —— 撤回按钮挂在它上面。
+ * 失败气泡恒在队尾（新消息被 hasPendingFailure 挡住进不来），所以它就是倒数第二条。
+ */
+const retractableUserUid = computed(() => {
+  if (!hasPendingFailure.value) return undefined
+  const userMsg = messages.value[messages.value.length - 2]
+  return userMsg?.sender === 'user' ? userMsg.uid : undefined
+})
+
+// 发送按钮可用性只看 textarea：只读场景由 prompt-card 遮罩拦截，不参与这里。
+// 但失败待恢复必须算进来 —— 那时蒙版虽然盖着，回车是键盘事件，蒙版挡不住。
+const sendDisabled = computed(
+  () => !hasInput.value || isGenerating.value || hasPendingFailure.value,
+)
 
 // prompt-toolbar 三按钮（占位）：点击时弹一下
 const promptTools = [
@@ -124,7 +175,41 @@ const hasMore = ref(false)
 const loadingMore = ref(false)
 /** 点击反馈动画时长，同时作为「反馈至少显示这么久」的下限 */
 const FEEDBACK_MS = 400
+/**
+ * 分隔条「点亮 / 淡出」的时长。
+ * 同时喂给 CSS 的 transition-duration 和 .is-dimmed 的 visibility，
+ * 两处共用一个值才不会出现「还没淡完就被隐藏」的突变。
+ */
+const DIM_MS = 300
+/**
+ * 撤回时消息的退场时长。
+ * 刻意比 `.msg-enter` 的渐显（`msg-fade-in 0.33s ease`）快一档：退场是用户主动取消，
+ * 拖得比入场久反而更烦人；240ms 里两段各 120ms，渐隐看得清、收空间也不拖沓。
+ * 与 MessageRow 里 `.msg-row.is-leaving` 共用一个值（经 CSS 变量 --leave-ms 传下去），
+ * 这样「动画播完」和「真的从队列移除」是同一时刻。
+ */
+const LEAVE_MS = 240
 const cursor = ref<string | undefined>(undefined)
+
+/**
+ * 每次真正呈现给用户的有效消息条数（首屏与「加载更多」同一口径）。
+ * error 记录会被过滤掉，所以「请求条数」≠「呈现条数」—— 见 fillPending。
+ */
+const PAGE_TARGET = 10
+/**
+ * 单次游标请求的条数。后端是 `Math.min(pageSize, 30)`，所以直接取上限：
+ * 页越大，「凑够 PAGE_TARGET 条有效消息」越可能一次请求就够
+ *（页取小了反而要翻更多次，往返更贵）。多取的部分不浪费，见 pending。
+ */
+const CURSOR_PAGE_SIZE = 30
+/**
+ * 已取回但还没渲染的有效消息，时间正序（旧 → 新），恒比当前渲染窗口更旧。
+ *
+ * 它的存在就是为了让 CURSOR_PAGE_SIZE 敢取大：多取的那些在这里变成**预取**，
+ * 下一次「加载更多」直接从尾部取，不必再发请求。
+ * 用 ref 是因为「还能不能翻」要依赖它的长度（canLoadMore）。
+ */
+const pending = ref<ChatMessage[]>([])
 
 // ---------- helpers ----------
 async function fetchMessages(
@@ -138,64 +223,191 @@ async function fetchMessages(
 }
 
 // ---------- history loading ----------
-function appendRecords(records: API.ChatHistoryVO[]) {
-  records.forEach((r) => {
-    messages.value.unshift({
-      uid: crypto.randomUUID(),
-      sender: r.messageType === 'user' ? 'user' : 'ai',
-      content: r.message || '',
-      avatarUrl: r.messageType === 'user' ? USER_AVATAR.value : AI_AVATAR,
-      createTime: r.createTime || new Date().toISOString(),
-      renderState: 'history',
-    })
-  })
+/** 单条历史记录 → 渲染消息 */
+function recordToMessage(r: API.ChatHistoryVO): ChatMessage {
+  const isUser = r.messageType === 'user'
+  return {
+    uid: crypto.randomUUID(),
+    sender: isUser ? 'user' : 'ai',
+    content: r.message || '',
+    avatarUrl: isUser ? USER_AVATAR.value : AI_AVATAR,
+    createTime: r.createTime || new Date().toISOString(),
+    renderState: 'history',
+    // 带上主键：撤回接口要用（appId + chatHistoryId）
+    messageId: r.id,
+  }
+}
+
+/**
+ * 一页记录 → 时间正序的消息数组。后端按 (createTime DESC, id DESC) 返回，所以要倒着走。
+ *
+ * error 与 retraction **都不渲染**：
+ *  - error      ｜失败回合的墓碑。之前重试成功过的那些失败没必要留在历史里；
+ *  - retraction ｜被撤回的那条 user 行 —— 后端是「就地把 messageType 改写」而成，
+ *                 位置保留，所以它出现在原本 user 该在的地方。
+ *
+ * 唯一的例外是最新的一轮失败（records[0] 是 error）：那时它是「失败待恢复」的当前回合，
+ * 必须渲染出提示和按钮，否则用户看到的是一句没人应答的提问。
+ * 但前提是那一轮的**开场记录**是 user；若已是 retraction，说明撤回过，整轮都不渲染。
+ */
+function pageToMessages(
+  records: API.ChatHistoryVO[],
+  opts: { renderTailError: boolean },
+): ChatMessage[] {
+  const out: ChatMessage[] = []
+  for (let i = records.length - 1; i >= 0; i--) {
+    const t = records[i].messageType
+    if (t === 'error' || t === 'retraction') continue
+    out.push(recordToMessage(records[i]))
+  }
+
+  if (opts.renderTailError && records[0]?.messageType === 'error') {
+    // 往回找本轮的开场记录 —— 必须「找到即停」，它要么是 user，要么是被撤回后的 retraction。
+    // 不能只 find(user)：跳过 retraction 会一路配到**上一轮**的 user，
+    // 结果既把已撤回的一轮又渲染出来，重试还会用上一轮的提示词。
+    const opening = records
+      .slice(1)
+      .find((r) => r.messageType === 'user' || r.messageType === 'retraction')
+
+    // 开场记录是 retraction（或整页都找不到）→ 本轮已撤回 / 无从定位，什么都不渲染
+    if (opening?.messageType === 'user') {
+      // error 记录的 message 就是**已生成的那部分内容**（失败原因只进日志）。
+      // 一个字都没流出来时它是空串 —— 那句「生成中断，请重试」的兜底由 MessageRow 负责，
+      // 这样「failed=mid-stream 且 content 非空 ⇒ 一定是真半成品」成为结构性保证，
+      // 渐隐截断的判定就不需要再传标志位，实时和历史也不可能两边写歪。
+      //
+      // 也注意开场记录不一定是 records[1]：error 会连续堆积
+      //（失败落一条、重试再失败又落一条），实测出现过 [error, error, user] 的序列。
+      out.push({
+        uid: crypto.randomUUID(),
+        sender: 'ai',
+        content: records[0].message || '',
+        avatarUrl: AI_AVATAR,
+        createTime: records[0].createTime || new Date().toISOString(),
+        renderState: 'history',
+        failed: 'mid-stream',
+        prompt: opening.message || undefined,
+      })
+    }
+  }
+
+  return out
+}
+
+/**
+ * 「创建应用流」：历史为空时把初始提示词自动作为第一条消息发出去。
+ *
+ * 必须响应式触发，不能只在 onMounted 里判一次：
+ * AppEditPage 是 v-if="appId"，appId 一赋值本组件就挂载，
+ * 但 initialPrompt / disabled 要等应用详情和登录用户都到位才成立，
+ * 那一刻 app.value 仍是 null → initialPrompt 为 undefined、disabled 为 true。
+ * 详情接口和历史接口是并发发出的、响应只差几毫秒，谁先回不确定，
+ * 于是「历史先回」时挂载时那一次判定必然落空（实测：首页创建流 3 次里 1 次、
+ * 直接开链接 5/5），而详情回来后又没有任何东西再触发它
+ * → 现象就是「创建应用后初始提示词时而不发」。
+ */
+const historyEmptyConfirmed = ref(false)
+/** 自动发送只允许成功触发一次 */
+const autoSendDone = ref(false)
+
+async function autoSendInitialPrompt() {
+  if (autoSendDone.value || !historyEmptyConfirmed.value) return
+  // disabled 要等「详情 + 登录用户」都到位才变 false，天然充当等待条件
+  if (!props.initialPrompt || props.disabled) return
+  // 已有历史（含刚加载出来的）绝不补发，避免重复生成
+  if (messages.value.length > 0) return
+  autoSendDone.value = true
+  await sendMessage(props.initialPrompt, { animate: false })
 }
 
 onMounted(async () => {
   const historyCount = await loadHistory()
-  // 创建应用流：历史为空时自动发送初始提示词
-  if (historyCount === 0 && props.initialPrompt && !props.disabled) {
-    sendMessage(props.initialPrompt, { animate: false })
-  }
+  // null = 历史没取到，此时不自动发送，宁可漏发也不要覆盖已有的历史
+  if (historyCount === 0) historyEmptyConfirmed.value = true
+  await autoSendInitialPrompt()
 })
 
-async function loadHistory(): Promise<number> {
-  try {
+// initialPrompt / disabled 是异步到位的：后到时补一次触发
+watch([() => props.initialPrompt, () => props.disabled], () => {
+  autoSendInitialPrompt()
+})
+
+/** 还能不能往更早翻：后端还有更多，或者本地已经预取了一些 */
+const canLoadMore = computed(() => hasMore.value || pending.value.length > 0)
+
+/**
+ * 翻页把 pending 补到至少 need 条有效消息。
+ *
+ * 为什么需要这一层：error 记录被过滤后，「一页返回多少条」≠「呈现多少条」。
+ * 只翻一页可能只呈现一两条，看起来像坏了 —— 这里保证每次呈现都补到 PAGE_TARGET 条
+ * （除非确实翻到底了）。因为 CURSOR_PAGE_SIZE 取了上限 30，绝大多数情况一次请求就够；
+ * 多取的部分留在 pending，下一次「加载更多」直接从那里取，不必再请求。
+ *
+ * @returns 是否拿到了数据。false = 请求失败，调用方保持原状
+ */
+async function fillPending(need: number): Promise<boolean> {
+  // 首次调用时 hasMore 还没被后端确认过（初值 false，好让分隔条一开始是暗的），
+  // 所以第一轮无条件请求一次
+  let mustFetch = true
+  while (pending.value.length < need && (mustFetch || hasMore.value)) {
+    mustFetch = false
+
     const data = await fetchMessages({
       appId: props.appId,
+      pageSize: CURSOR_PAGE_SIZE,
+      ...(cursor.value ? { cursor: cursor.value } : {}),
     })
-    if (!data || !data.records?.length) {
-      return 0
-    }
-    appendRecords(data.records)
+    if (!data) return false
+
+    const records = data.records || []
     cursor.value = data.nextCursor
-    hasMore.value = data.hasMore ?? true
+    // 后端恒返回 hasMore，缺省只在异常响应里出现；这时取 false（宁可让分隔条变暗，
+    // 也不要留一个点了没反应的按钮）
+    hasMore.value = data.hasMore ?? false
+    if (!records.length) break
+
+    // 新取回的一页比 pending 里现有的都旧，所以接到前面（保持时间正序）。
+    // tail-error 规则只对「全量里最新的那一条」生效，也就是第一次请求的第一条。
+    const isFirstFetch = pending.value.length === 0 && messages.value.length === 0
+    pending.value = pageToMessages(records, { renderTailError: isFirstFetch }).concat(pending.value)
+  }
+  return true
+}
+
+/** 从 pending 尾部取出至多 n 条（尾部 = 最接近当前渲染窗口的那批） */
+function takePending(n: number): ChatMessage[] {
+  return pending.value.splice(Math.max(0, pending.value.length - n))
+}
+
+async function loadHistory(): Promise<number | null> {
+  try {
+    const ok = await fillPending(PAGE_TARGET)
+    // 请求失败（code != 200）不等于「没有历史」，不能当成 0，
+    // 否则后端抖一下就会凭空补发一条重复消息
+    if (!ok) return null
+    messages.value.push(...takePending(PAGE_TARGET))
     applyViewport('bottom')
-    return data.records.length
+    return messages.value.length
   } catch {
     message.error('加载历史消息失败')
-    return 0
+    return null
   }
 }
 
 async function loadMore() {
-  if (loadingMore.value || !hasMore.value || !cursor.value || isGenerating.value) return
+  if (loadingMore.value || !canLoadMore.value || isGenerating.value) return
   loadingMore.value = true
   try {
     const anchor = captureAnchor()
     // 后端可能几十毫秒就返回，这一步保证反馈动画至少播完；
-    // 若请求更慢，则锁定一直持续到数据到位——正确性不依赖后端有多快
-    const [data] = await Promise.all([
-      fetchMessages({
-        appId: props.appId,
-        cursor: cursor.value,
-      }),
+    // 若请求更慢，则锁定一直持续到数据到位——正确性不依赖后端有多快。
+    // pending 里已经够数时不会发请求，但仍走同一个等待，动画时长才一致。
+    const [ok] = await Promise.all([
+      fillPending(PAGE_TARGET),
       new Promise((resolve) => setTimeout(resolve, FEEDBACK_MS)),
     ])
-    if (!data) return
-    appendRecords(data.records || [])
-    cursor.value = data.nextCursor
-    hasMore.value = data.hasMore ?? true
+    if (!ok) return
+    messages.value.unshift(...takePending(PAGE_TARGET))
     applyViewport('preserve', anchor)
   } catch {
     message.error('加载更多失败')
@@ -205,40 +417,25 @@ async function loadMore() {
 }
 
 // ---------- send message (SSE) ----------
-async function sendMessage(textArg?: string, opts: { animate: boolean } = { animate: true }) {
-  const text = (textArg ?? userInput.value).trim()
-  if (!text || isGenerating.value || props.disabled) return
+/**
+ * 真正发起一次 SSE 生成。
+ *
+ * 首次发送（sendMessage）与失败重试（retryMessage）都收敛到这里，
+ * 两条路径的差别只在「谁创建 aiMsg」，流本身的处理完全一致。
+ */
+function runStream(aiMsg: ChatMessage, isRetry: boolean) {
+  const prompt = aiMsg.prompt ?? ''
 
-  // 1. Optimistically show user message
-  messages.value.push({
-    uid: crypto.randomUUID(),
-    sender: 'user',
-    content: text,
-    avatarUrl: USER_AVATAR.value,
-    createTime: new Date().toISOString(),
-    renderState: 'done',
-    entering: true,
-  })
-
-  // 2. Placeholder AI message — wrapped in reactive for reliable mutation tracking
-  const aiMsg = reactive<ChatMessage>({
-    uid: crypto.randomUUID(),
-    sender: 'ai',
-    content: '',
-    avatarUrl: AI_AVATAR,
-    createTime: new Date().toISOString(),
-    renderState: 'loading',
-    entering: true,
-  })
-  messages.value.push(aiMsg)
-
-  userInput.value = ''
   isGenerating.value = true
-  sendingAnim.value = opts.animate
-  applyViewport('bottom')
+  aiMsg.content = ''
+  aiMsg.failed = undefined
+  aiMsg.renderState = 'loading'
 
-  // 3. SSE streaming via composable
-  const url = `${API_BASE}/apps/user/code-stream?appId=${props.appId}&userPrompt=${encodeURIComponent(text)}`
+  // retry 是后端 DTO 的必填项（@NotNull），它决定「要不要再写一条用户提示词」：
+  // 首次发送传 false，失败重试传 true —— 传错会让历史里出现重复提问，漏传则整个请求 40000。
+  const url =
+    `${API_BASE}/apps/user/code-stream` +
+    `?appId=${props.appId}&userPrompt=${encodeURIComponent(prompt)}&retry=${isRetry}`
 
   const { startStream } = useStreaming({
     url,
@@ -257,20 +454,167 @@ async function sendMessage(textArg?: string, opts: { animate: boolean } = { anim
     onError: (err) => {
       console.error('[ChatBoard] SSE error:', err)
       isGenerating.value = false
-      aiMsg.content = '[连接错误，请稍后重试]'
+      // 两种失败的协议形态不同，处理也不同（见 useStreaming 的 StreamErrorKind）
+      const kind = err instanceof StreamError ? err.kind : 'pre-stream'
+      aiMsg.failed = kind
       aiMsg.renderState = 'done'
+
+      if (kind === 'pre-stream') {
+        // 流建立前失败：响应里一个字的内容都没有，整体换成固定文案
+        aiMsg.content = '系统异常，请重试'
+        message.error('系统异常，请重试')
+      } else {
+        // 流建立后失败：气泡里已经有半截内容，**原样保留、一个字都不覆盖**。
+        // 半成品为空（一个字都没流出来）时，由 MessageRow 兜底显示固定文案。
+        // 失败表现交给 MessageRow：被中断的代码块显示「代码编辑异常！」，
+        // 文字结尾则做渐隐截断 + 告警图标；时间戳下方给重试 / 撤回按钮。
+        //
+        // 这里用固定文案，**不能拿 err.message** —— 错误帧的 message 后端放的是半成品内容
+        //（失败原因只进后端日志），拿它当提示会弹出一段生成出来的 HTML。
+        message.error('AI 响应失败')
+      }
+
       applyViewport('follow')
-      message.error('AI 响应失败')
     },
   })
 
   startStream()
 }
 
+/** 创建 AI 占位气泡并追加到消息队列。reactive 包装是为了让流式赋值能被稳定追踪 */
+function createAiMessage(prompt: string) {
+  const aiMsg = reactive<ChatMessage>({
+    uid: crypto.randomUUID(),
+    sender: 'ai',
+    content: '',
+    avatarUrl: AI_AVATAR,
+    createTime: new Date().toISOString(),
+    renderState: 'loading',
+    entering: true,
+    prompt,
+  })
+  messages.value.push(aiMsg)
+  return aiMsg
+}
+
+async function sendMessage(textArg?: string, opts: { animate: boolean } = { animate: true }) {
+  const text = (textArg ?? userInput.value).trim()
+  // 失败待恢复时不允许发新消息：必须先重试，否则历史里会留下一条孤儿提问
+  if (!text || isGenerating.value || props.disabled || hasPendingFailure.value) return
+
+  // 1. Optimistically show user message
+  messages.value.push({
+    uid: crypto.randomUUID(),
+    sender: 'user',
+    content: text,
+    avatarUrl: USER_AVATAR.value,
+    createTime: new Date().toISOString(),
+    renderState: 'done',
+    entering: true,
+  })
+
+  // 2. Placeholder AI message
+  const aiMsg = createAiMessage(text)
+
+  userInput.value = ''
+  sendingAnim.value = opts.animate
+  applyViewport('bottom')
+
+  // 3. SSE streaming via composable
+  runStream(aiMsg, false)
+}
+
+/**
+ * 失败重试。
+ *
+ * 语义：删掉失败的那条 AI 气泡，用同一段提示词重新发一次，新气泡追加到消息队列末尾。
+ * 刻意不再插一条用户消息 —— 提示词已经在上一条 user 气泡里，重发一次就够了。
+ */
+function retryMessage(failedMsg: ChatMessage) {
+  if (isGenerating.value || props.disabled) return
+  const idx = messages.value.findIndex((m) => m.uid === failedMsg.uid)
+  if (idx < 0 || !failedMsg.prompt) return
+
+  // 先摘掉失败气泡，再 push 新占位，避免新的流式内容落进旧气泡
+  messages.value.splice(idx, 1)
+  const aiMsg = createAiMessage(failedMsg.prompt)
+
+  applyViewport('follow')
+  // isRetry=true：让后端跳过用户提示词落库，否则历史里会出现重复提问
+  runStream(aiMsg, true)
+}
+
+/** 撤回请求进行中。后端是幂等的，但没必要连点两次 */
+const retracting = ref(false)
+
+/** 轮次级操作（重试 / 撤回）的禁用条件：生成中、只读、撤回请求进行中 */
+const turnActionDisabled = computed(
+  () => isGenerating.value || !!props.disabled || retracting.value,
+)
+
+/**
+ * 撤回本轮：后端把这条 user 行就地改写成 retraction，整轮（提问 + 失败气泡）从对话里消失。
+ *
+ * 顺序很重要：**先等接口成功，再动渲染队列**。反过来的话接口失败但你本地已经删了，
+ * 刷新之后那一轮又回来，前后端状态就不一致。
+ */
+async function retractTurn(userMsg: ChatMessage) {
+  if (retracting.value || isGenerating.value || props.disabled) return
+  const failedMsg = messages.value[messages.value.length - 1]
+  retracting.value = true
+
+  try {
+    const res = await retractUserPrompt({
+      appId: props.appId,
+      // 只有历史记录才带主键；刚失败的那一轮是本地占位对象，
+      // 不带 id，让后端按「最新一轮失败对话」自己推断
+      ...(userMsg.messageId ? { chatHistoryId: userMsg.messageId } : {}),
+    })
+    if (Number(res.data.code) !== 200 || !res.data.data) {
+      message.error(res.data.message || '撤回失败，请稍后重试')
+      return
+    }
+  } catch (e) {
+    console.error('[ChatBoard] retract failed:', e)
+    message.error('撤回失败，请稍后重试')
+    return
+  } finally {
+    retracting.value = false
+  }
+
+  // 不直接删：先让两条消息播退场动画（淡出 + 收起高度），播完再真正移除 ——
+  // 否则下方内容会瞬间往上跳一下。
+  // 用定时器而不是 transitionend：动画万一没播（元素不可见、降级）也必须能移除，
+  // 时长与 CSS 共用 --leave-ms，所以不会出现「动画还没完就消失」。
+  const leavingMsgs = [failedMsg, userMsg].filter((m): m is ChatMessage => !!m)
+  leavingMsgs.forEach((m) => (m.leaving = true))
+  applyViewport('follow')
+
+  window.setTimeout(() => {
+    for (const m of leavingMsgs) {
+      const idx = messages.value.findIndex((x) => x.uid === m.uid)
+      if (idx >= 0) messages.value.splice(idx, 1)
+    }
+    // 删完 hasPendingFailure 自动变 false，输入区蒙版随之消失 —— 不需要单独释放
+    applyViewport('follow')
+  }, LEAVE_MS)
+}
+
 // ---------- viewport (throttled via RAF cancel) ----------
 type ViewportPolicy = 'bottom' | 'preserve' | 'follow'
 /** 距底部 8px 以内视为贴底 */
 const BOTTOM_EPS = 8
+/**
+ * 「已到顶」的触发范围：视口高度的 20%。
+ *
+ * 为什么用比例而不是固定像素：容器高度会随窗口变化（实测 900px 窗口下
+ * 内容区 550px，窗口缩小后可能只有 300px 出头），固定值在不同尺寸下松紧不一。
+ * 按比例换算，小窗口下触发区自动变窄，手感一致。
+ *
+ * 20% 换算成绝对值远比原先的固定 8px 宽松（550px 容器 → 110px），
+ * 所以不必再额外设一个像素下限。
+ */
+const TOP_TRIGGER_RATIO = 0.2
 
 const scroller = ref<HTMLElement | null>(null)
 let scrollRafId = 0
@@ -280,10 +624,28 @@ let scrollRafId = 0
  */
 const pinnedToBottom = ref(true)
 
+/**
+ * 是否处于「接近顶部」区间。控制「加载更多历史」分隔条是否点亮。
+ * 与 pinnedToBottom 同理：只由滚动事件维护，避免内容变高时错误重算。
+ */
+const atScrollTop = ref(true)
+
 function onScrollerScroll() {
   const el = scroller.value
   if (!el) return
+  syncScrollState(el)
+}
+
+/**
+ * 把两个滚动派生态从元素上重新读一遍。
+ *
+ * 为什么不只在 @scroll 里读：JS 主动改 scrollTop（applyViewport）和插入历史消息
+ * （会连带原生滚动锚定补偿）都会改变滚动位置且**不一定触发 scroll 事件**，
+ * 那时 atScrollTop / pinnedToBottom 就是陈旧的。凡是我们自己动过滚动位置，都要在这里同步一次。
+ */
+function syncScrollState(el: HTMLElement) {
   pinnedToBottom.value = el.scrollTop + el.clientHeight >= el.scrollHeight - BOTTOM_EPS
+  atScrollTop.value = el.scrollTop <= el.clientHeight * TOP_TRIGGER_RATIO
 }
 
 /**
@@ -317,6 +679,8 @@ function applyViewport(
     } else if (pinnedToBottom.value) {
       el.scrollTop = el.scrollHeight
     }
+    // 我们自己动过滚动位置：同步派生态，不等 scroll 事件（它不保证触发）
+    syncScrollState(el)
   })
 }
 
@@ -324,14 +688,17 @@ function applyViewport(
 
 <template>
   <div class="chat-board-wrapper">
-    <!-- Top: Load More History -->
-    <div class="chat-board-header">
+    <!-- Top: Load More History
+         常驻占位（不随滚动挂载/卸载，避免内容区上下跳），只在滚到顶部时「点亮」。
+         未点亮时用 visibility:hidden 连点击一起关掉。
+         状态来自滚动容器 @scroll 维护的 atScrollTop（见 syncScrollState）。 -->
+    <div class="chat-board-header" :style="{ '--dim-ms': DIM_MS + 'ms' }">
       <button
         type="button"
         class="load-more-divider"
-        :class="{ 'is-hidden': !hasMore, 'is-loading': loadingMore }"
+        :class="{ 'is-dimmed': !(canLoadMore && (atScrollTop || loadingMore)), 'is-loading': loadingMore }"
         :style="{ '--feedback-ms': FEEDBACK_MS + 'ms' }"
-        :disabled="isGenerating || !hasMore || loadingMore"
+        :disabled="isGenerating || !canLoadMore || loadingMore"
         @click="loadMore"
       >
         加载更多历史
@@ -339,7 +706,13 @@ function applyViewport(
     </div>
 
     <!-- Middle: Messages -->
-    <div ref="scroller" class="chat-board-content" @scroll.passive="onScrollerScroll">
+    <!-- --leave-ms 挂在容器上供 MessageRow 继承：退场时长与 JS 的 LEAVE_MS 同源 -->
+    <div
+      ref="scroller"
+      class="chat-board-content"
+      :style="{ '--leave-ms': LEAVE_MS + 'ms' }"
+      @scroll.passive="onScrollerScroll"
+    >
       <MessageRow
         v-for="msg in messages"
         :key="msg.uid"
@@ -348,11 +721,18 @@ function applyViewport(
         :avatar-url="msg.avatarUrl"
         :create-time="msg.createTime"
         :render-state="msg.renderState"
+        :failed="msg.failed"
+        :leaving="msg.leaving"
+        :retry-disabled="turnActionDisabled || !msg.prompt || !!msg.leaving"
+        :retractable="msg.uid === retractableUserUid"
+        :retract-disabled="turnActionDisabled || !!msg.leaving"
         :class="{
           'msg-enter': msg.entering,
           'msg-enter-delayed': msg.entering && msg.sender === 'ai',
         }"
         @animationend="handleRowAnimationEnd($event, msg)"
+        @retry="retryMessage(msg)"
+        @retract="retractTurn(msg)"
       />
       <div v-if="!messages.length" class="empty-hint">暂无消息，开始对话吧</div>
     </div>
@@ -362,13 +742,13 @@ function applyViewport(
       <div class="prompt-card">
         <!-- div1: 无边框输入区，随内容向上扩张 -->
         <div class="prompt-input">
+          <!-- 不回车发送：回车交还给 textarea 的默认行为（换行），发送只走右下角按钮 -->
           <ATextarea
             v-model:value="userInput"
             placeholder="一个点子就够了～"
             :bordered="false"
             :auto-size="{ minRows: 2, maxRows: 6 }"
             :disabled="disabled"
-            @keydown.enter.exact.prevent="sendMessage()"
           />
         </div>
 
@@ -423,8 +803,9 @@ function applyViewport(
           </div>
         </div>
 
-        <!-- 只读（查看他人作品）：遮罩封住整卡。AI 生成期间不封卡——只由 sendDisabled 封住发送键 -->
-        <div v-if="disabled" class="prompt-lock">{{ disabledTip }}</div>
+        <!-- 只读（查看他人作品）/ 失败待恢复：遮罩封住整卡。
+             AI 生成期间不封卡——只由 sendDisabled 封住发送键 -->
+        <div v-if="promptLocked" class="prompt-lock">{{ promptLockText }}</div>
       </div>
     </div>
   </div>
@@ -438,11 +819,14 @@ function applyViewport(
   overflow: hidden;
 }
 
+/* 分隔条常驻占位：高度用 min-height 锁死，两种状态几何完全一致，内容区不上下跳。
+   （早期版本是「挂载/卸载」或 `v-if`，都会让 header 塌陷 21px 导致内容位移） */
 .chat-board-header {
   padding: 0 16px;
+  min-height: 21px;
 }
 
-/* 「---- 查看更多 ----」式分隔条：两侧横线用 currentColor，随文字一起变灰/变绿 */
+/* 「---- 查看更多 ----」式分隔条：两侧横线用 currentColor，随文字一起变灰变绿 */
 .load-more-divider {
   display: flex;
   align-items: center;
@@ -458,7 +842,10 @@ function applyViewport(
   opacity: 0.5;
   color: var(--color-text-tertiary);
   cursor: pointer;
-  transition: color 0.4s, opacity 0.4s;
+  /* 颜色（hover 变品牌色）单独一条慢过渡；
+     opacity（滚到顶的点亮/淡出）用 --dim-ms，与 .is-dimmed 的 visibility 共用同一个值，
+     保证「淡出播完」和「真正隐藏并挡掉点击」在同一时刻发生 */
+  transition: color 0.4s, opacity var(--dim-ms, 300ms);
 }
 
 /* max-width 控制单侧横线长度：横线不再撑满容器 */
@@ -522,9 +909,21 @@ function applyViewport(
   cursor: not-allowed;
 }
 
-/* 始终占位：hasMore 变 false 时只隐藏不摘除，否则 header 塌陷会让内容区整体上移 */
-.load-more-divider.is-hidden {
+/* 未点亮（没滚到顶部，或已经没有更多历史）：
+   保留占位：header 的 min-height 撑住这一行，几何不塌陷（实测滚动容器高度恒为 550px）。
+   visibility:hidden 一并挡掉点击，不需要额外的 pointer-events。
+   注意 visibility 是离散属性，**只有写在 transition-property 里才会被推迟**：
+   过渡中它会取「目标值」，所以淡出方向要等 --dim-ms 播完才真正 hidden，
+   淡入方向则立刻 visible。两处与 opacity 共用同一个 --dim-ms，
+   保证「淡完」与「可隐藏」同时发生，不会中途被切掉。
+
+   loadingMore 时强制点亮（见模板里的 || loadingMore）：加载中会走 'preserve'
+   策略保住视图位置，scrollTop 一离开 0 就会判定为「未到顶」，
+   若不特判，正在播的呼吸/收缩反馈会被 opacity:0 直接吞掉。 */
+.load-more-divider.is-dimmed {
+  transition: color 0.4s, opacity var(--dim-ms, 300ms), visibility var(--dim-ms, 300ms);
   visibility: hidden;
+  opacity: 0;
 }
 
 .chat-board-content {

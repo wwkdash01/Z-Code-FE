@@ -155,6 +155,12 @@ declare namespace API {
     data?: boolean;
   };
 
+  type BaseResponseretractUserPrompt = {
+    code?: number;
+    message?: any;
+    data?: boolean;
+  };
+
   type BaseResponsesaveApp = {
     code?: number;
     message?: any;
@@ -223,7 +229,7 @@ declare namespace API {
     /** 关联用户ID */
     userId?: string;
     message?: string;
-    /** 消息类型：user=用户消息，ai=AI回复 */
+    /** 消息类型：user=用户消息，ai=AI回复，error=失败消息（message 承载失败前已生成的半成品内容），retraction=撤销的消息 */
     messageType?: string;
     editTime?: string;
     createTime?: string;
@@ -236,7 +242,7 @@ declare namespace API {
     appId: string;
     /** 消息内容 */
     message: string;
-    /** 消息类型：user=用户消息，ai=AI回复 */
+    /** 消息类型：user=用户消息，ai=AI回复，error=错误消息，retraction=撤销的消息 */
     messageType: string;
   };
 
@@ -250,13 +256,15 @@ declare namespace API {
   };
 
   type ChatHistoryVO = {
+    /** 会话记录主键ID */
+    id?: string;
     /** 关联应用ID */
     appId?: string;
     /** 关联用户ID */
     userId?: string;
     /** 消息内容 */
     message?: string;
-    /** 消息类型：user=用户消息，ai=AI回复 */
+    /** 消息类型：user=用户消息，ai=AI回复，error=失败消息（message 承载失败前已生成的半成品内容），retraction=撤销的消息 */
     messageType?: string;
     /** 创建时间 */
     createTime?: string;
@@ -296,7 +304,7 @@ declare namespace API {
     appId?: string;
     /** 关联用户ID */
     userId?: string;
-    /** 消息类型过滤：user/ai */
+    /** 消息类型过滤：user=用户消息，ai=AI回复，error=错误消息，retraction=撤销的消息 */
     messageType?: string;
     pageNum?: number;
     pageSize?: number;
@@ -307,12 +315,6 @@ declare namespace API {
   type getChatHistoryByIdParams = {
     /** 聊天记录ID */
     id: any;
-  };
-
-  type getCodeGenStreamParams = {
-    /** 应用主键ID */
-    appId: string;
-    userPrompt: string;
   };
 
   type getFeaturedAppByIdParams = {
@@ -393,7 +395,7 @@ declare namespace API {
   type queryChatHistoryByCursorParams = {
     /** 关联应用ID */
     appId?: string;
-    /** 消息类型过滤：user/ai */
+    /** 消息类型过滤：user=用户消息，ai=AI回复，error=错误消息，retraction=撤销的消息 */
     messageType?: string;
     /** 翻页游标，首次加载不传 */
     cursor?: string;
@@ -423,7 +425,12 @@ declare namespace API {
     id: any;
   };
 
-  type ServerSentEventString = Record<string, any>;
+  type RetractUserPromptRequestDTO = {
+    /** 关联应用ID */
+    appId: string;
+    /** 目标用户提示词的消息ID，不传则撤销最新一轮失败对话 */
+    chatHistoryId?: string;
+  };
 
   type serveStaticResourceParams = {
     deployKey: string;
