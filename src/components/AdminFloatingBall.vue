@@ -3,7 +3,7 @@ import { computed, ref, type Component } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDraggable, useEventListener, useStorage } from '@vueuse/core'
 import { AppstoreOutlined, SettingOutlined, TeamOutlined } from '@ant-design/icons-vue'
-import annoLogo from '@/assets/anno.png'
+import rikiLogo from '@/assets/riki.png'
 import { adminNavItems } from '@/config/menu'
 import { useLoginUserStore } from '@/stores/loginUser'
 
@@ -31,6 +31,35 @@ const DRAG_THRESHOLD = 4
 /** 位置持久化 key（沿用 src/utils/auth.ts 的 `_` 前缀约定） */
 const POSITION_KEY = '_admin_fab_position'
 
+/**
+ * 位置序列化器。
+ *
+ * 不能吃 useStorage 的默认序列化：默认值传 null 时 vueuse 的
+ * guessSerializerType(null) 会判成 'any'，而 StorageSerializers.any.write 就是
+ * String(v) —— 对象被写成 "[object Object]"。下次读回来是个字符串，clampPosition
+ * 里 Math.max(MARGIN, undefined) 得到 NaN，useDraggable 的 style 模板再拼成
+ * "left: NaNpx; top: NaNpx;"；Vue 对字符串 style 走的是 style.cssText，两条非法
+ * 声明被整条丢弃，position: fixed 的球就退回静态位置（文档流末尾 = 视口外），
+ * 且 fixed 不随滚动，球表现为"不渲染"。这里统一 JSON 化，并把任何读不出有限
+ * x/y 的历史脏值判成 null，让旧数据自愈成默认位。
+ */
+const positionSerializer = {
+  read(raw: string): { x: number; y: number } | null {
+    try {
+      const parsed = JSON.parse(raw) as { x?: unknown; y?: unknown } | null
+      const { x, y } = parsed ?? {}
+      return Number.isFinite(x) && Number.isFinite(y)
+        ? { x: x as number, y: y as number }
+        : null
+    } catch {
+      return null
+    }
+  },
+  write(value: { x: number; y: number } | null): string {
+    return JSON.stringify(value)
+  },
+}
+
 const loginUserStore = useLoginUserStore()
 const router = useRouter()
 
@@ -46,7 +75,11 @@ const ITEM_ICONS: Record<string, Component> = {
 }
 
 /** 视口内约束 + 取整：整数像素，避免球落在亚像素上 */
-function clampPosition(pos: { x: number; y: number }) {
+function clampPosition(pos: { x: number; y: number }): { x: number; y: number } {
+  // 兜底：非有限数一旦进 style 就是 "left: NaNpx"，浏览器整条丢弃 → 球退回静态
+  // 位置（视口外）。positionSerializer 已经挡了一层，这里再挡一层，保证任何来源
+  // （脏存储、0 尺寸视口、极端 onMove）都进不了 style 字符串。
+  if (!Number.isFinite(pos?.x) || !Number.isFinite(pos?.y)) return defaultPosition()
   const maxX = Math.max(MARGIN, window.innerWidth - BALL_SIZE - MARGIN)
   const maxY = Math.max(MARGIN, window.innerHeight - BALL_SIZE - MARGIN)
   return {
@@ -56,7 +89,7 @@ function clampPosition(pos: { x: number; y: number }) {
 }
 
 /** 默认位置：右侧偏下（避开 GlobalFooter 与全屏页底部可能出现的操作区） */
-function defaultPosition() {
+function defaultPosition(): { x: number; y: number } {
   return clampPosition({
     x: window.innerWidth - BALL_SIZE - MARGIN,
     y: window.innerHeight * 0.62,
@@ -69,8 +102,15 @@ function defaultPosition() {
  * 注意 useDraggable 的 initialValue 只在 setup 时读一次
  * （源码是 `ref(toValue(initialValue) ?? {x:0,y:0})`，没有 watch），所以恢复位置
  * 必须在这里同步喂进去，否则首帧会先闪一下默认位。
+ * serializer 必须显式给（见 positionSerializer 的注释）：默认值 null 会让 vueuse
+ * 选到 'any' 序列化器，把对象写成 "[object Object]"。
  */
-const savedPosition = useStorage<{ x: number; y: number } | null>(POSITION_KEY, null)
+const savedPosition = useStorage<{ x: number; y: number } | null>(
+  POSITION_KEY,
+  null,
+  undefined,
+  { serializer: positionSerializer },
+)
 
 /** 拖动结束吸附到最近的左右边缘 */
 function snapToEdge(pos: { x: number; y: number }) {
@@ -84,7 +124,7 @@ function snapToEdge(pos: { x: number; y: number }) {
 let pointerStart = { x: 0, y: 0 }
 
 const { position, isDragging, style } = useDraggable(ballRef, {
-  initialValue: savedPosition.value ? clampPosition(savedPosition.value) : defaultPosition(),
+  initialValue: clampPosition(savedPosition.value ?? defaultPosition()),
   onStart: (_pos, event) => {
     pointerStart = { x: event.clientX, y: event.clientY }
     dragMoved.value = false
@@ -195,7 +235,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
             class="admin-fab__ball"
             aria-label="管理员功能"
             :aria-expanded="panelOpen"
-            :style="{ backgroundImage: `url(${annoLogo})` }"
+            :style="{ backgroundImage: `url(${rikiLogo})` }"
             @keydown.enter.prevent="togglePanel"
             @keydown.space.prevent="togglePanel"
           >
